@@ -3,7 +3,7 @@ MaxiMask is a convolutional neural network that detects contaminants in astronom
 
 For now it is usable only with a tensorflow compatible GPU.
 
-# Dependancies
+# Dependencies
 * Python 2.7
 * Scipy 1.0.1 or higher
 * Astropy 2.0.7 or higher
