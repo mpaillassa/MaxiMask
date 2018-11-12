@@ -12,7 +12,7 @@ For now it is usable only with a tensorflow compatible GPU.
 # Usage
 The current version has 3 "modes" and should be used as following:
 ```
-python inference.py <nn_path> <src_im_path> <optional batch_size>
+python MaxiMask.py <nn_path> <src_im_path> <optional batch_size>
 ```
 Where:
 * _nn_path_ is the path to the neural network save directory: by default it should be /path_to_repository/MaxiMask/model
@@ -49,3 +49,6 @@ Processing an HDU consists in:
 * 12 SP: diffraction spikes
 * 13 BBG: bright background
 * 14 BG: background
+
+# LICENCE
+Copyright (c) 2018 Maxime Paillassa. Released under GPLv3. See LICENSE.txt for details.

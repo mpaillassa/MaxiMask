@@ -1,3 +1,5 @@
+# Copyright (c) 2018 Maxime Paillassa. Released under GPLv3.
+
 import os
 import sys
 import glob
@@ -225,7 +227,7 @@ def main():
     NB_CL = 14
 
     if len(sys.argv)!=3 and len(sys.argv)!=4:
-        print "Usage: python inference.py <nn_path> <src_im_path> <batch_s>"
+        print "Usage: python " + sys.argv[0] + " <nn_path> <src_im_path> <batch_s>"
         print "Where: "
         print "    nn_path is the path to the neural network save directory"
         print "    src_im_path is the path to the image(s) to be processed"
