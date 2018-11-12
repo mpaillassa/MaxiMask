@@ -14,7 +14,6 @@ import tensorflow as tf
 
 def background_estimation(im):
     """Process a Sextractor like background estimation
-    Returns the "bright" mask and the background map
     """
 
     h,w = im.shape
@@ -184,14 +183,14 @@ def process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b):
 
             src_im = src_im_hdu[int(spec_hdu)].data.astype(np.float32)
             
-            # dynamic compression
-            bg_map = background_estimation(src_im)
-            src_im -= bg_map
-            sig = np.std(src_im)
-            src_im /= sig
+        # dynamic compression
+        bg_map = background_estimation(src_im)
+        src_im -= bg_map
+        sig = np.std(src_im)
+        src_im /= sig
 
-            masks = process_hdu(src_im, sess, IM_SIZE, NB_CL, max_b)
-            hdu = fits.PrimaryHDU(masks.astype(np.float32))
+        masks = process_hdu(src_im, sess, IM_SIZE, NB_CL, max_b)
+        hdu = fits.PrimaryHDU(masks.astype(np.float32))
         hdu.writeto(src_im_path[:-n].replace(".fits", ".masks" + spec_hdu + ".fits"), overwrite=True)
     else:
         # process all hdus containing data
@@ -220,7 +219,7 @@ def process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b):
                     tmp_hdu = src_im_hdu[k]
                     hdu.append(tmp_hdu)
 
-        hdu.writeto(src_im_path.replace(".fits", ".masks.fits"), overwrite=True)
+            hdu.writeto(src_im_path.replace(".fits", ".masks.fits"), overwrite=True)
 
 def main():
     IM_SIZE = 400
