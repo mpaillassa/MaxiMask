@@ -50,5 +50,9 @@ Processing an HDU consists in:
 * 13 BBG: bright background
 * 14 BG: background
 
-# LICENCE
-Copyright (c) 2018 Maxime Paillassa. Both code and model weights are released under MIT licence. See LICENSE for details.
+# LICENSE
+Copyright (c) 2018 Maxime Paillassa. 
+
+Both code and model weights are released under MIT license. 
+
+See LICENSE for details.
