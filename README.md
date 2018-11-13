@@ -5,9 +5,9 @@ For now it is usable only with a tensorflow compatible GPU.
 
 # Dependencies
 * Python 2.7
-* Scipy 1.0.1 or higher
-* Astropy 2.0.7 or higher
-* tensorflow-gpu 1.9 or higher
+* Scipy >=1.0.1
+* Astropy >=2.0.7
+* tensorflow-gpu >=1.9
 
 # Usage
 The current version has 3 "modes" and should be used as following:
@@ -15,8 +15,8 @@ The current version has 3 "modes" and should be used as following:
 python MaxiMask.py <nn_path> <src_im_path> <optional batch_size>
 ```
 Where:
-* _nn_path_ is the path to the neural network save directory: by default it should be /path_to_repository/MaxiMask/model
-* _src_im_path_ is the path to the image(s) to be processed
+* _nn_path_ is the path to the neural network save directory: by default it should be </path_to_repository/MaxiMask/model>.
+* _src_im_path_ is the path to the image(s) to be processed.
 * _batch_size_ is an optional parameter to modify the batch size. Default is 16 but you might use a lower value like 8 or 4 if you don't have enough GPU RAM available.
 
 The 3 modes depend on the _src_im_path_ parameter:
