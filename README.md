@@ -15,10 +15,11 @@ The current version has 3 "modes" and should be used as following:
 python MaxiMask.py <cpu|gpu> <nn_path> <src_im_path> <optional batch_size>
 ```
 Where:
-* _cpu|gpu_ is a string specifying if you are using CPU or GPU (CPU will be much slower than GPU).
-* _nn_path_ is the path to the neural network save directory: by default it should be </path_to_repository/MaxiMask/model>.
-* _src_im_path_ is the path to the image(s) to be processed.
-* _batch_size_ is an optional parameter to modify the batch size. Default is 8 but you might use a lower value like if you don't have enough RAM available (or a higher value if you have a lot of RAM).
+* **cpu|gpu** is a string specifying if you are using CPU or GPU (CPU will be much slower than GPU).  
+**MaxiWarning**: if you use a GPU tensorflow version while specifying cpu, it will run properly but will produce incorrect results.
+* **nn_path** is the path to the neural network save directory: by default it should be </path_to_repository/MaxiMask/model>.
+* **src_im_path** is the path to the image(s) to be processed.
+* **batch_size** is an optional parameter to modify the batch size. Default is 8 but you might use a lower value like if you don't have enough RAM available (or a higher value if you have a lot of RAM).
 
 The 3 modes depend on the _src_im_path_ parameter:
 * if it is a file precising a specific HDU (CFITSIO notation) like <file.fits[nb_hdu]>, it will process only the hdu <nb_hdu> of <file.fits>. 
@@ -28,7 +29,7 @@ This should return a file <file.masks.fits> that has the same HDU structure than
 * if it is a directory, it will process all the fits images of this directory as in the previous case.
 This should return all the mask files in the same directory.
 
-Processing an HDU consists in:
+Behind the scene, processing an HDU consists in:
 * estimating the sky background
 * applying the dynamic compression
 * slicing it into 400x400 sub images
