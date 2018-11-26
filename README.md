@@ -1,23 +1,24 @@
 # MaxiMask
 MaxiMask is a convolutional neural network that detects contaminants in astronomical images.
 
-For now it is usable only with a tensorflow compatible GPU.
-
 # Dependencies
 * Python 2.7
 * Scipy >=1.0.1
 * Astropy >=2.0.7
-* tensorflow-gpu >=1.9
+* tensorflow or tensorflow-gpu >=1.9
+
+(Older versions may work but it has not been tested)
 
 # Usage
 The current version has 3 "modes" and should be used as following:
 ```
-python MaxiMask.py <nn_path> <src_im_path> <optional batch_size>
+python MaxiMask.py <cpu|gpu> <nn_path> <src_im_path> <optional batch_size>
 ```
 Where:
+* _cpu|gpu_ is a string specifying if you are using CPU or GPU (CPU will be much slower than GPU).
 * _nn_path_ is the path to the neural network save directory: by default it should be </path_to_repository/MaxiMask/model>.
 * _src_im_path_ is the path to the image(s) to be processed.
-* _batch_size_ is an optional parameter to modify the batch size. Default is 16 but you might use a lower value like 8 or 4 if you don't have enough GPU RAM available.
+* _batch_size_ is an optional parameter to modify the batch size. Default is 8 but you might use a lower value like if you don't have enough RAM available (or a higher value if you have a lot of RAM).
 
 The 3 modes depend on the _src_im_path_ parameter:
 * if it is a file precising a specific HDU (CFITSIO notation) like <file.fits[nb_hdu]>, it will process only the hdu <nb_hdu> of <file.fits>. 

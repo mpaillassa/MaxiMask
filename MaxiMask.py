@@ -2,9 +2,7 @@
 
 import os
 import sys
-import glob
 import math
-import time
 import numpy as np
 import scipy.interpolate as interp
 import scipy.signal as sign
@@ -225,20 +223,22 @@ def main():
     IM_SIZE = 400
     NB_CL = 14
 
-    if len(sys.argv)!=3 and len(sys.argv)!=4:
-        print "Usage: python " + sys.argv[0] + " <nn_path> <src_im_path> <batch_s>"
+    if len(sys.argv)!=4 and len(sys.argv)!=5:
+        print "Usage: python " + sys.argv[0] + " <cpu|gpu> <nn_path> <src_im_path> <batch_s>"
         print "Where: "
+        print "    cpu|gpu is a string speficifying if you are using CPU or GPU"
         print "    nn_path is the path to the neural network save directory"
         print "    src_im_path is the path to the image(s) to be processed"
-        print "    batch_s is the batch size for inference (optional)"
+        print "    batch_s is the batch size for inference (optional, default is 8)"
         sys.exit()
 
-    net_path = sys.argv[1]
-    src_im_path = sys.argv[2]
-    if len(sys.argv)==4:
-        max_b = int(sys.argv[3])
+    hard_backend = sys.argv[1]
+    net_path = sys.argv[2]
+    src_im_path = sys.argv[3]
+    if len(sys.argv)==5:
+        max_b = int(sys.argv[4])
     else:
-        max_b = 16
+        max_b = 8
 
     # gpu options
     config = tf.ConfigProto()
@@ -246,8 +246,8 @@ def main():
     
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
-        nsaver = tf.train.import_meta_graph(max(glob.iglob(net_path + "/*.meta"), key=os.path.getctime))
-        nsaver.restore(sess, max(glob.iglob(net_path + "/*.meta"), key=os.path.getctime).split(".")[0])
+        nsaver = tf.train.import_meta_graph(net_path + "/" + hard_backend + "_model.meta")
+        nsaver.restore(sess, net_path + "/model-150000")
         
         if os.path.isfile(src_im_path) or src_im_path[-1]=="]":
             # process the image
