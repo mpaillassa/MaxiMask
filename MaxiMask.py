@@ -199,12 +199,11 @@ def process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL):
 
                     masks = np.zeros([h,w,NB_CL], dtype=np.float32)
                     process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL)
-                    hdu = fits.PrimaryHDU(np.transpose(masks, (2,0,1)))
                     if k==0:
-                        m_hdu = fits.PrimaryHDU(masks.astype(np.float32))
+                        m_hdu = fits.PrimaryHDU(np.transpose(masks, (2,0,1)))
                         hdu.append(m_hdu)
                     else:
-                        sub_hdu = fits.ImageHDU(masks.astype(np.float32))
+                        sub_hdu = fits.ImageHDU(np.transpose(masks, (2,0,1)))
                         hdu.append(sub_hdu)
                 else:
                     # if this seems not to be data then copy the hdu
