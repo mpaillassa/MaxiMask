@@ -78,7 +78,31 @@ def background_estimation(im):
     return back_val
 
 
-def process_hdu(src_im, sess, IM_SIZE, NB_CL, max_b):
+def process_batch(src_im, masks, batch_s, tot_l, first_p, last_p, sess, IM_SIZE, NB_CL):
+    """ Process one batch
+    """
+    
+    IM4 = IM_SIZE/4
+
+    tmp_masks = np.zeros([batch_s, IM_SIZE, IM_SIZE, NB_CL])
+    inp = np.zeros([batch_s, IM_SIZE, IM_SIZE])
+
+    # prepare inputs and make inference
+    k = 0
+    for coord in tot_l[first_p:last_p]:
+        inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
+        k += 1
+    tmp_masks = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1])})
+
+    # copy in final mask
+    k = 0
+    for coord in tot_l[first_p:last_p]:
+        x, y = coord
+        masks[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+        k += 1
+
+
+def process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL):
     """ Process one hdu 
     """
 
@@ -101,7 +125,7 @@ def process_hdu(src_im, sess, IM_SIZE, NB_CL, max_b):
         w_max = w-w_r-IM_SIZE
     else:
         w_max = w-w_r-IM2
-
+    
     # list of positions to make inference on
     tot_l = []
     for y in range(0, h_max+1, IM2):
@@ -113,57 +137,22 @@ def process_hdu(src_im, sess, IM_SIZE, NB_CL, max_b):
         tot_l.append([w-IM_SIZE, y])
     tot_l.append([w-IM_SIZE, h-IM_SIZE])
 
-    tmp_masks = np.zeros([len(tot_l), IM_SIZE, IM_SIZE, NB_CL])
     # if less inferences than batch size do it in one pass
     if len(tot_l)<=max_b:
-        inp = np.zeros([len(tot_l), IM_SIZE, IM_SIZE])
-        k = 0
-        for coord in tot_l:
-            inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
-            k += 1
-        tmp_masks = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [len(tot_l), IM_SIZE, IM_SIZE, 1])})
+        process_batch(src_im, masks, len(tot_l), tot_l, 0, len(tot_l), sess, IM_SIZE, NB_CL)
     # otherwise iterate over all batches to do
     else:
         nb_step = len(tot_l)/max_b+1
         for st in range(nb_step-1):
             if st<nb_step-1:
-                inp = np.zeros([max_b, IM_SIZE, IM_SIZE])
-                k = 0
-                for coord in tot_l[st*max_b:(st+1)*max_b]:
-                    inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
-                    k += 1
-                tmp_masks[st*max_b:(st+1)*max_b] = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [max_b, IM_SIZE, IM_SIZE, 1])})
-
+                process_batch(src_im, masks, max_b, tot_l, st*max_b, (st+1)*max_b, sess, IM_SIZE, NB_CL)
         # manage the last (incomplete) batch
         re = len(tot_l)-(nb_step-1)*max_b
         if re:
-            inp = np.zeros([re, IM_SIZE, IM_SIZE])
-            k = 0
-            for coord in tot_l[(nb_step-1)*max_b:]:
-                inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
-                k += 1
-            tmp_masks[(nb_step-1)*max_b:] = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [re, IM_SIZE, IM_SIZE, 1])})
+            process_batch(src_im, masks, re, tot_l, (nb_step-1)*max_b, len(tot_l), sess, IM_SIZE, NB_CL)
 
-    # build the mask images
-    masks = np.zeros([h,w,NB_CL], dtype=np.float32)
-    k = 0
-    for y in range(0, h_max+1, IM2):
-        for x in range(0, w_max+1, IM2):
-            masks[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
-            k += 1
-    for x in range(0, w_max+1, IM2):
-        masks[h-IM_SIZE+IM4:h-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
-        k += 1
-    for y in range(0, h_max+1, IM2):
-        masks[IM4+y:y+IM_SIZE-IM4, w-IM_SIZE+IM4:w-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
-        k += 1
-    x = w-IM_SIZE
-    y = h-IM_SIZE
-    masks[IM4+y:y+IM_SIZE-IM4, w-IM_SIZE+IM4:w-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
 
-    return np.transpose(masks, (2,0,1))
-
-def process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b):
+def process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL):
     """ Process one fits file
     If the hdu is specified in the name of the file by <[nb]> it processes the hdu <nb>
     Otherwise it processes all the hdus containing data
@@ -180,15 +169,17 @@ def process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b):
                 sys.exit()
 
             src_im = src_im_hdu[int(spec_hdu)].data.astype(np.float32)
-            
+            h,w = src_im.shape
+
         # dynamic compression
         bg_map = background_estimation(src_im)
         src_im -= bg_map
         sig = np.std(src_im)
         src_im /= sig
 
-        masks = process_hdu(src_im, sess, IM_SIZE, NB_CL, max_b)
-        hdu = fits.PrimaryHDU(masks.astype(np.float32))
+        masks = np.zeros([h,w,NB_CL], dtype=np.float32)
+        process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL)
+        hdu = fits.PrimaryHDU(np.transpose(masks, (2,0,1)))
         hdu.writeto(src_im_path[:-n].replace(".fits", ".masks" + spec_hdu + ".fits"), overwrite=True)
     else:
         # process all hdus containing data
@@ -198,6 +189,7 @@ def process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b):
             for k in range(nb_hdu):
                 if len(src_im_hdu[k].shape)==2:
                     src_im = src_im_hdu[k].data.astype(np.float32)
+                    h,w = src_im.shape
 
                     # dynamic compression
                     bg_map = background_estimation(src_im)
@@ -205,7 +197,9 @@ def process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b):
                     sig = np.std(src_im)
                     src_im /= sig
 
-                    masks = process_hdu(src_im, sess, IM_SIZE, NB_CL, max_b)
+                    masks = np.zeros([h,w,NB_CL], dtype=np.float32)
+                    process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL)
+                    hdu = fits.PrimaryHDU(np.transpose(masks, (2,0,1)))
                     if k==0:
                         m_hdu = fits.PrimaryHDU(masks.astype(np.float32))
                         hdu.append(m_hdu)
@@ -218,6 +212,7 @@ def process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b):
                     hdu.append(tmp_hdu)
 
             hdu.writeto(src_im_path.replace(".fits", ".masks.fits"), overwrite=True)
+
 
 def main():
     IM_SIZE = 400
@@ -251,12 +246,13 @@ def main():
         
         if os.path.isfile(src_im_path) or src_im_path[-1]=="]":
             # process the image
-            process_file(src_im_path, sess, IM_SIZE, NB_CL, max_b)
+            process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL)
         else:
             # process all the images of the directory
             for src_im_s in os.listdir(src_im_path):
                 if "fits" in src_im_s:
-                    process_file(src_im_path + "/" + src_im_s, sess, IM_SIZE, NB_CL, max_b)
+                    process_file(src_im_path + "/" + src_im_s, sess, max_b, IM_SIZE, NB_CL)
+
 
 if __name__=="__main__":
     main()
