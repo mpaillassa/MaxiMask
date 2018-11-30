@@ -83,6 +83,7 @@ def process_batch(src_im, masks, batch_s, tot_l, first_p, last_p, sess, IM_SIZE,
     """
     
     IM4 = IM_SIZE/4
+    h,w = src_im.shape
 
     tmp_masks = np.zeros([batch_s, IM_SIZE, IM_SIZE, NB_CL])
     inp = np.zeros([batch_s, IM_SIZE, IM_SIZE])
@@ -96,9 +97,25 @@ def process_batch(src_im, masks, batch_s, tot_l, first_p, last_p, sess, IM_SIZE,
 
     # copy in final mask
     k = 0
-    for coord in tot_l[first_p:last_p]:
-        x, y = coord
-        masks[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+    for x,y in tot_l[first_p:last_p]:
+        if x==0 and y==0:
+            masks[:y+IM_SIZE-IM4, :x+IM_SIZE-IM4, :] = tmp_masks[k][:IM_SIZE-IM4, :IM_SIZE-IM4]
+        elif x==0 and y==h-IM_SIZE:
+            masks[IM4+y:h, :x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE, :IM_SIZE-IM4]
+        elif x==0 and y and y!=h-IM_SIZE:
+            masks[IM4+y:y+IM_SIZE-IM4, :x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, :IM_SIZE-IM4]
+        elif x==w-IM_SIZE and y==0:
+            masks[:y+IM_SIZE-IM4, IM4+x:w, :] = tmp_masks[k][:IM_SIZE-IM4, IM4:IM_SIZE]
+        elif x==w-IM_SIZE and y==h-IM_SIZE:
+            masks[IM4+y:h, IM4+x:w, :] = tmp_masks[k][IM4:IM_SIZE, IM4:IM_SIZE]
+        elif x==w-IM_SIZE and y and y!=h-IM_SIZE:
+            masks[IM4+y:y+IM_SIZE-IM4, IM4+x:w, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE]
+        elif x and x!=w-IM_SIZE and y==0:
+            masks[:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+        elif x and x!=w-IM_SIZE and y==h-IM_SIZE:
+            masks[IM4+y:h, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE, IM4:IM_SIZE-IM4]
+        else:
+            masks[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
         k += 1
 
 
