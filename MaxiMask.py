@@ -10,72 +10,80 @@ from astropy.io import fits
 
 import tensorflow as tf
 
-def background_estimation(im):
+def background_est(im):
     """Process a Sextractor like background estimation
     """
-
+    
     h,w = im.shape
-    back_val = np.zeros([h, w])
     mesh_size = 200
+
+    # get the number blocks to process
+    h_blocks = (h-h%mesh_size)/mesh_size
+    w_blocks = (w-w%mesh_size)/mesh_size
+    x_l, y_l = [], []
+    for y in range(h_blocks):
+        for x in range(w_blocks):
+            x_l.append(x*mesh_size)
+            y_l.append(y*mesh_size)
+    
+    # process the blocks
+    nb_blocks = len(x_l)
     z = []
-    for i in range(int(round(float(h)/mesh_size))+1):
-        for j in range(int(round(float(w)/mesh_size))+1):
-            i_b, i_e = max(0, i*mesh_size-mesh_size/2), min(i*mesh_size+mesh_size/2, h)
-            j_b, j_e = max(0, j*mesh_size-mesh_size/2), min(j*mesh_size+mesh_size/2, w)
+    for k in range(nb_blocks):
+        x_b, x_e = x_l[k], min(x_l[k]+mesh_size, w)
+        y_b, y_e = y_l[k], min(y_l[k]+mesh_size, h)
 
-            mesh = im[i_b:i_e, j_b:j_e]
+        mesh = im[y_b:y_e, x_b:x_e]
             
-            tmp_mask = np.ones_like(mesh)
-            idx = np.where(tmp_mask)
-            init_std = np.std(mesh[idx[0], idx[1]])
-            tmp_std = init_std
-            tmp_med = np.median(mesh[idx[0], idx[1]])
-            k = 3.0
-            while True:
-                to_keep = np.logical_and(tmp_mask*(mesh >= tmp_med-k*tmp_std), tmp_mask*(mesh <= tmp_med+k*tmp_std))
-                if np.all(to_keep)==np.all(tmp_mask):
-                    break
-                else:
-                    tmp_mask *= to_keep
-                    idx = np.where(tmp_mask)
-                    tmp_std = np.std(mesh[idx[0], idx[1]])
-                    tmp_med = np.median(mesh[idx[0], idx[1]])
-            idx = np.where(tmp_mask)
-            if tmp_std > init_std - 0.01*init_std or tmp_std < init_std + 0.01*init_std:
-                b_v = np.mean(mesh[idx[0], idx[1]])
+        tmp_mask = np.ones_like(mesh)
+        idx = np.where(tmp_mask)
+        init_std = np.std(mesh[idx[0], idx[1]])
+        tmp_std = init_std
+        tmp_med = np.median(mesh[idx[0], idx[1]])
+        k = 3.0
+        while True:
+            to_keep = np.logical_and(tmp_mask*(mesh >= tmp_med-k*tmp_std), tmp_mask*(mesh <= tmp_med+k*tmp_std))
+            if np.all(to_keep)==np.all(tmp_mask):
+                break
             else:
-                b_v = 2.5*np.median(mesh[idx[0], idx[1]]) - 1.5*np.mean(mesh[idx[0], idx[1]])
-            z.append(b_v)
+                tmp_mask *= to_keep
+                idx = np.where(tmp_mask)
+                tmp_std = np.std(mesh[idx[0], idx[1]])
+                tmp_med = np.median(mesh[idx[0], idx[1]])
+        idx = np.where(tmp_mask)
+        if tmp_std > init_std - 0.01*init_std or tmp_std < init_std + 0.01*init_std:
+            b_v = np.mean(mesh[idx[0], idx[1]])
+        else:
+            b_v = 2.5*np.median(mesh[idx[0], idx[1]]) - 1.5*np.mean(mesh[idx[0], idx[1]])
+        z.append(b_v)
 
-    if h%mesh_size:
-        ii = np.arange(0, h-mesh_size/2, mesh_size)
-        ii = np.append(ii, (i_b+i_e)/2)
-    else:
-        ii = np.arange(mesh_size/2, h, mesh_size)
+    # build the little mesh to median filter and to interpolate
+    to_interp = np.zeros([h_blocks, w_blocks])
+    for k in range(nb_blocks):
+        to_interp[y_l[k]/mesh_size, x_l[k]/mesh_size] = z[k]
+        
+    to_interp2 = np.zeros([h_blocks+2, w_blocks+2])
+    to_interp2[1:-1, 1:-1] = to_interp
 
-    if w%mesh_size:
-        jj = np.arange(0, w-mesh_size/2, mesh_size)
-        jj = np.append(jj, (j_b+j_e)/2)
-    else:
-        jj = np.arange(mesh_size/2, w, mesh_size)
+    to_interp2[0,1:-1] = to_interp[0,:]
+    to_interp2[1:-1,0] = to_interp[:,0]
+    to_interp2[-1,1:-1] = to_interp[-1,:]
+    to_interp2[1:-1,-1] = to_interp[:,-1]
 
-    v = np.zeros([ii.shape[0], jj.shape[0]])
-    k = 0
-    for i in range(ii.shape[0]):
-        for j in range(jj.shape[0]):
-            v[i,j] = z[k]
-            k += 1
-    v = v.T
+    # median filter
+    to_interp2 = sign.medfilt(to_interp2, 3)
+    
+    # replace the 0 in the corners to avoid corner artefacts
+    to_interp2[0,0] = to_interp2[1,1]
+    to_interp2[0,-1] = to_interp2[1,-2]
+    to_interp2[-1,0] = to_interp2[-2,1]
+    to_interp2[-1,-1] = to_interp2[-2,-2]
 
-    if len(z)>16:
-        vv = np.reshape(sign.medfilt(v, 3), [ii.shape[0]*jj.shape[0]])
-        f = interp.interp2d(jj, ii, vv, kind='cubic')
-    else:
-        f = interp.interp2d(ii, jj, np.array(z), kind='linear')
+    # interpolate across the blocks
+    f = interp.RectBivariateSpline(np.arange(-mesh_size/2, (h_blocks+1)*mesh_size, mesh_size), np.arange(-mesh_size/2, (w_blocks+1)*mesh_size, mesh_size), to_interp2)
+    back_val = f(np.arange(h), np.arange(w))
 
-    back_val = f(np.arange(w), np.arange(h))
-
-    return back_val
+    return back_val 
 
 
 def process_batch(src_im, masks, batch_s, tot_l, first_p, last_p, sess, IM_SIZE, NB_CL):
@@ -98,24 +106,23 @@ def process_batch(src_im, masks, batch_s, tot_l, first_p, last_p, sess, IM_SIZE,
     # copy in final mask
     k = 0
     for x,y in tot_l[first_p:last_p]:
+        masks[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+        if x==0:
+            masks[IM4+y:y+IM_SIZE-IM4, x:x+IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, :IM4]
+        if y==0:
+            masks[y:y+IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][:IM4, IM4:IM_SIZE-IM4]
+        if x==w-IM_SIZE:
+            masks[IM4+y:y+IM_SIZE-IM4, x+IM_SIZE-IM4:x+IM_SIZE, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM_SIZE-IM4:IM_SIZE]
+        if y==h-IM_SIZE:
+            masks[y+IM_SIZE-IM4:y+IM_SIZE, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM_SIZE-IM4:IM_SIZE, IM4:IM_SIZE-IM4]
         if x==0 and y==0:
-            masks[:y+IM_SIZE-IM4, :x+IM_SIZE-IM4, :] = tmp_masks[k][:IM_SIZE-IM4, :IM_SIZE-IM4]
-        elif x==0 and y==h-IM_SIZE:
-            masks[IM4+y:h, :x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE, :IM_SIZE-IM4]
-        elif x==0 and y and y!=h-IM_SIZE:
-            masks[IM4+y:y+IM_SIZE-IM4, :x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, :IM_SIZE-IM4]
-        elif x==w-IM_SIZE and y==0:
-            masks[:y+IM_SIZE-IM4, IM4+x:w, :] = tmp_masks[k][:IM_SIZE-IM4, IM4:IM_SIZE]
-        elif x==w-IM_SIZE and y==h-IM_SIZE:
-            masks[IM4+y:h, IM4+x:w, :] = tmp_masks[k][IM4:IM_SIZE, IM4:IM_SIZE]
-        elif x==w-IM_SIZE and y and y!=h-IM_SIZE:
-            masks[IM4+y:y+IM_SIZE-IM4, IM4+x:w, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE]
-        elif x and x!=w-IM_SIZE and y==0:
-            masks[:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
-        elif x and x!=w-IM_SIZE and y==h-IM_SIZE:
-            masks[IM4+y:h, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE, IM4:IM_SIZE-IM4]
-        else:
-            masks[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+            masks[y:y+IM4, x:x+IM4, :] = tmp_masks[k][:IM4, :IM4]
+        if x==0 and y==h-IM_SIZE:
+            masks[y+IM_SIZE-IM4:y+IM_SIZE, x:x+IM4, :] = tmp_masks[k][IM_SIZE-IM4:IM_SIZE, :IM4]
+        if x==w-IM_SIZE and y==0:
+            masks[y:y+IM4, x+IM_SIZE-IM4:x+IM_SIZE, :] = tmp_masks[k][:IM4, IM_SIZE-IM4:IM_SIZE]
+        if x==w-IM_SIZE and y==h-IM_SIZE:
+            masks[y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE, :] = tmp_masks[k][IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
         k += 1
 
 
@@ -131,28 +138,20 @@ def process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL):
         print "One of the two image dimension is less than " + str(IM_SIZE) + " : not supported yet"
         print "Exiting..."
         sys.exit()
-    
-    # managing borders
-    h_r, w_r = h%IM_SIZE, w%IM_SIZE
-    if h_r<IM2:
-        h_max = h-h_r-IM_SIZE
-    else:
-        h_max = h-h_r-IM2
-    if w_r<IM2:
-        w_max = w-w_r-IM_SIZE
-    else:
-        w_max = w-w_r-IM2
-    
+
     # list of positions to make inference on
     tot_l = []
-    for y in range(0, h_max+1, IM2):
-        for x in range(0, w_max+1, IM2):
+    for y in range(0, h-IM_SIZE+1, IM2):
+        for x in range(0, w-IM_SIZE+1, IM2):
             tot_l.append([x, y])
-    for x in range(0, w_max+1, IM2):
-        tot_l.append([x, h-IM_SIZE])
-    for y in range(0, h_max+1, IM2):
-        tot_l.append([w-IM_SIZE, y])
-    tot_l.append([w-IM_SIZE, h-IM_SIZE])
+    if h%IM_SIZE:
+        for x in range(0, w-IM_SIZE+1, IM2):
+            tot_l.append([x, h-IM_SIZE])
+    if w%IM_SIZE:
+        for y in range(0, h-IM_SIZE+1, IM2):
+            tot_l.append([w-IM_SIZE, y])
+    if w%IM_SIZE and h%IM_SIZE: 
+        tot_l.append([w-IM_SIZE, h-IM_SIZE])
 
     # if less inferences than batch size do it in one pass
     if len(tot_l)<=max_b:
@@ -189,7 +188,7 @@ def process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL):
             h,w = src_im.shape
 
         # dynamic compression
-        bg_map = background_estimation(src_im)
+        bg_map = background_est(src_im)
         src_im -= bg_map
         sig = np.std(src_im)
         src_im /= sig
@@ -209,7 +208,7 @@ def process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL):
                     h,w = src_im.shape
 
                     # dynamic compression
-                    bg_map = background_estimation(src_im)
+                    bg_map = background_est(src_im)
                     src_im -= bg_map
                     sig = np.std(src_im)
                     src_im /= sig
