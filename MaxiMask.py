@@ -3,12 +3,14 @@
 import os
 import sys
 import math
+import argparse
 import numpy as np
 import scipy.interpolate as interp
 import scipy.signal as sign
 from astropy.io import fits
 
 import tensorflow as tf
+
 
 def background_est(im):
     """Process a Sextractor like background estimation
@@ -28,10 +30,10 @@ def background_est(im):
     
     # process the blocks
     nb_blocks = len(x_l)
-    z = []
-    for k in range(nb_blocks):
-        x_b, x_e = x_l[k], min(x_l[k]+mesh_size, w)
-        y_b, y_e = y_l[k], min(y_l[k]+mesh_size, h)
+    z = [None]*nb_blocks
+    for b in range(nb_blocks):
+        x_b, x_e = x_l[b], min(x_l[b]+mesh_size, w)
+        y_b, y_e = y_l[b], min(y_l[b]+mesh_size, h)
 
         mesh = im[y_b:y_e, x_b:x_e]
             
@@ -56,12 +58,12 @@ def background_est(im):
             b_v = np.mean(mesh[idx[0], idx[1]])
         else:
             b_v = 2.5*np.median(mesh[idx[0], idx[1]]) - 1.5*np.mean(mesh[idx[0], idx[1]])
-        z.append(b_v)
+        z[b] = b_v
 
     # build the little mesh to median filter and to interpolate
     to_interp = np.zeros([h_blocks, w_blocks])
-    for k in range(nb_blocks):
-        to_interp[y_l[k]/mesh_size, x_l[k]/mesh_size] = z[k]
+    for b in range(nb_blocks):
+        to_interp[y_l[b]/mesh_size, x_l[b]/mesh_size] = z[b]
         
     to_interp2 = np.zeros([h_blocks+2, w_blocks+2])
     to_interp2[1:-1, 1:-1] = to_interp
@@ -87,52 +89,48 @@ def background_est(im):
     return back_val 
 
 
-def process_batch(src_im, masks, batch_s, tot_l, first_p, last_p, sess, IM_SIZE, NB_CL):
+def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
     """ Process one batch
     """
     
-    IM4 = IM_SIZE/4
     h,w = src_im.shape
 
-    tmp_masks = np.zeros([batch_s, IM_SIZE, IM_SIZE, NB_CL])
-    inp = np.zeros([batch_s, IM_SIZE, IM_SIZE])
+    inp = np.zeros([batch_s, IM_SIZE, IM_SIZE], dtype=np.float32)
+    tmp_results = np.zeros([batch_s, IM_SIZE, IM_SIZE, NB_CL], dtype=np.float32)
 
     # prepare inputs and make inference
     k = 0
     for coord in tot_l[first_p:last_p]:
         inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
         k += 1
-    tmp_masks = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1])})
+    tmp_results = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1])})[:,:,:,CLASSES]
 
     # copy in final mask
     k = 0
     for x,y in tot_l[first_p:last_p]:
-        masks[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+        results[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
         if x==0:
-            masks[IM4+y:y+IM_SIZE-IM4, x:x+IM4, :] = tmp_masks[k][IM4:IM_SIZE-IM4, :IM4]
+            results[IM4+y:y+IM_SIZE-IM4, x:x+IM4] = tmp_results[k][IM4:IM_SIZE-IM4, :IM4]
         if y==0:
-            masks[y:y+IM4, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][:IM4, IM4:IM_SIZE-IM4]
+            results[y:y+IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][:IM4, IM4:IM_SIZE-IM4]
         if x==w-IM_SIZE:
-            masks[IM4+y:y+IM_SIZE-IM4, x+IM_SIZE-IM4:x+IM_SIZE, :] = tmp_masks[k][IM4:IM_SIZE-IM4, IM_SIZE-IM4:IM_SIZE]
+            results[IM4+y:y+IM_SIZE-IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM4:IM_SIZE-IM4, IM_SIZE-IM4:IM_SIZE]
         if y==h-IM_SIZE:
-            masks[y+IM_SIZE-IM4:y+IM_SIZE, IM4+x:x+IM_SIZE-IM4, :] = tmp_masks[k][IM_SIZE-IM4:IM_SIZE, IM4:IM_SIZE-IM4]
+            results[y+IM_SIZE-IM4:y+IM_SIZE, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM4:IM_SIZE-IM4]
         if x==0 and y==0:
-            masks[y:y+IM4, x:x+IM4, :] = tmp_masks[k][:IM4, :IM4]
+            results[y:y+IM4, x:x+IM4] = tmp_results[k][:IM4, :IM4]
         if x==0 and y==h-IM_SIZE:
-            masks[y+IM_SIZE-IM4:y+IM_SIZE, x:x+IM4, :] = tmp_masks[k][IM_SIZE-IM4:IM_SIZE, :IM4]
+            results[y+IM_SIZE-IM4:y+IM_SIZE, x:x+IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, :IM4]
         if x==w-IM_SIZE and y==0:
-            masks[y:y+IM4, x+IM_SIZE-IM4:x+IM_SIZE, :] = tmp_masks[k][:IM4, IM_SIZE-IM4:IM_SIZE]
+            results[y:y+IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:IM4, IM_SIZE-IM4:IM_SIZE]
         if x==w-IM_SIZE and y==h-IM_SIZE:
-            masks[y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE, :] = tmp_masks[k][IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
+            results[y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
         k += 1
 
 
-def process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL):
+def process_hdu(src_im, results, sess):
     """ Process one hdu 
     """
-
-    IM2 = IM_SIZE/2
-    IM4 = IM_SIZE/4
 
     h,w = src_im.shape
     if h<IM_SIZE or w<IM_SIZE:
@@ -155,31 +153,49 @@ def process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL):
         tot_l.append([w-IM_SIZE, h-IM_SIZE])
 
     # if less inferences than batch size do it in one pass
-    if len(tot_l)<=max_b:
-        process_batch(src_im, masks, len(tot_l), tot_l, 0, len(tot_l), sess, IM_SIZE, NB_CL)
+    if len(tot_l)<=BATCH_S:
+        process_batch(src_im, results, sess, len(tot_l), tot_l, 0, len(tot_l))
     # otherwise iterate over all batches to do
     else:
-        nb_step = len(tot_l)/max_b+1
+        nb_step = len(tot_l)/BATCH_S+1
         for st in range(nb_step-1):
             if st<nb_step-1:
-                process_batch(src_im, masks, max_b, tot_l, st*max_b, (st+1)*max_b, sess, IM_SIZE, NB_CL)
+                process_batch(src_im, results, sess, BATCH_S, tot_l, st*BATCH_S, (st+1)*BATCH_S)
         # manage the last (incomplete) batch
-        re = len(tot_l)-(nb_step-1)*max_b
+        re = len(tot_l)-(nb_step-1)*BATCH_S
         if re:
-            process_batch(src_im, masks, re, tot_l, (nb_step-1)*max_b, len(tot_l), sess, IM_SIZE, NB_CL)
+            process_batch(src_im, results, sess, re, tot_l, (nb_step-1)*BATCH_S, len(tot_l))
+
+    if PRIOR_MODIF:
+        cl = 0
+        for tcl in range(TNB_CL):
+            if CLASSES[tcl]:
+                prior_factor = (TR_PRIORS[tcl]*(1-PRIORS[tcl]))/((1-TR_PRIORS[tcl])*PRIORS[tcl])
+                results[:,:,cl] = results[:,:,cl]/(results[:,:,cl] + prior_factor*(1-results[:,:,cl]))
+                cl += 1
+                
+    if PROBA_THRESH:
+        thresholds = THRESH[CLASSES]
+        results[(results > thresholds)] = 1
+        results[(results <= thresholds)] = 0
 
 
-def process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL):
+def process_file(sess, src_im_s):
     """ Process one fits file
     If the hdu is specified in the name of the file by <[nb]> it processes the hdu <nb>
     Otherwise it processes all the hdus containing data
     """
+    
+    if src_im_s!="":
+        im_path = IM_PATH + "/" + src_im_s
+    else:
+        im_path = IM_PATH
 
-    if src_im_path[-1]=="]":
+    if im_path[-1]=="]":
         # process the specified hdu
-        spec_hdu = src_im_path.split("[")[1].split("]")[0]
+        spec_hdu = im_path.split("[")[1].split("]")[0]
         n = int(len(spec_hdu)+2)
-        with fits.open(src_im_path[:-n]) as src_im_hdu:
+        with fits.open(im_path[:-n]) as src_im_hdu:
             if int(spec_hdu)>len(src_im_hdu):
                 print "Error: requesting hdu " + spec_hdu + " when image has only " + str(len(src_im_hdu)) + " hdu(s)"
                 print "Exiting..."
@@ -193,14 +209,19 @@ def process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL):
         src_im -= bg_map
         sig = np.std(src_im)
         src_im /= sig
+        if VERB: print IM_PATH + " dynamic compression done"
 
-        masks = np.zeros([h,w,NB_CL], dtype=np.float32)
-        process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL)
-        hdu = fits.PrimaryHDU(np.transpose(masks, (2,0,1)))
-        hdu.writeto(src_im_path[:-n].replace(".fits", ".masks" + spec_hdu + ".fits"), overwrite=True)
+        results = np.zeros([h,w,NB_CL], dtype=np.float32)
+        process_hdu(src_im, results, sess)
+        if VERB: print IM_PATH + " inference done"
+        if PROBA_THRESH:
+            hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+        else:
+            hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
+        hdu.writeto(im_path[:-n].replace(".fits", ".masks" + spec_hdu + ".fits"), overwrite=True)
     else:
         # process all hdus containing data
-        with fits.open(src_im_path) as src_im_hdu:
+        with fits.open(im_path) as src_im_hdu:
             nb_hdu = len(src_im_hdu)
             hdu = fits.HDUList()
             for k in range(nb_hdu):
@@ -213,43 +234,154 @@ def process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL):
                     src_im -= bg_map
                     sig = np.std(src_im)
                     src_im /= sig
+                    if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done"
 
-                    masks = np.zeros([h,w,NB_CL], dtype=np.float32)
-                    process_hdu(src_im, masks, sess, max_b, IM_SIZE, NB_CL)
+                    results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                    process_hdu(src_im, results, sess)
+                    if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done"
                     if k==0:
-                        m_hdu = fits.PrimaryHDU(np.transpose(masks, (2,0,1)))
+                        if PROBA_THRESH:
+                            m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+                        else:
+                            m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
                         hdu.append(m_hdu)
                     else:
-                        sub_hdu = fits.ImageHDU(np.transpose(masks, (2,0,1)))
+                        if PROBA_THRESH:
+                            sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+                        else:
+                            sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)))
                         hdu.append(sub_hdu)
                 else:
                     # if this seems not to be data then copy the hdu
-                    tmp_hdu = src_im_hdu[k]
-                    hdu.append(tmp_hdu)
+                    hdu.append(src_im_hdu[k])
+                if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " done"
+           
+            if VERB: "Writing " + im_path.replace(".fits", ".masks.fits") + " to disk"
+            hdu.writeto(im_path.replace(".fits", ".masks.fits"), overwrite=True)
 
-            hdu.writeto(src_im_path.replace(".fits", ".masks.fits"), overwrite=True)
 
-
-def main():
-    IM_SIZE = 400
-    NB_CL = 14
-
-    if len(sys.argv)!=4 and len(sys.argv)!=5:
-        print "Usage: python " + sys.argv[0] + " <cpu|gpu> <nn_path> <src_im_path> <batch_s>"
-        print "Where: "
-        print "    cpu|gpu is a string speficifying if you are using CPU or GPU"
-        print "    nn_path is the path to the neural network save directory"
-        print "    src_im_path is the path to the image(s) to be processed"
-        print "    batch_s is the batch size for inference (optional, default is 8)"
-        sys.exit()
-
-    hard_backend = sys.argv[1]
-    net_path = sys.argv[2]
-    src_im_path = sys.argv[3]
-    if len(sys.argv)==5:
-        max_b = int(sys.argv[4])
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
     else:
-        max_b = 8
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def setup_params():
+    """
+    """
+
+    # parameter parser
+    parser = argparse.ArgumentParser(description='MaxiMask command line parameters:')
+
+    # necessary parameters
+    parser.add_argument("hard_back", type=str, help='<cpu> or <gpu> depending on your tensorflow installation hardware backend', choices=('cpu', 'gpu'))
+    parser.add_argument("im_path", type=str, help='path the image(s) to be processed')
+
+    # optional parameters
+    parser.add_argument("--net_path", type=str, help='path to the neural network graphs and weights directory. Default is </abs_path_to_rep/model>', default=os.path.dirname(os.path.abspath(__file__)) + "/model")
+    parser.add_argument("--prior_modif", type=str2bool, help='bool indicating if probability maps should be prior modified. Default is True', default=True)
+    parser.add_argument("--proba_thresh", type=str2bool, help='bool indicating if probability maps should be thresholded. Default is True', default=True)
+    parser.add_argument("--batch_size", type=int, help='neural network batch size. Default is 8. You might want to use a lower value if you have RAM issues', default=8)
+    parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
+
+    # read arguments
+    args = parser.parse_args()
+
+    global HARD_BACK
+    global IM_PATH
+
+    global NET_PATH
+    global PRIOR_MODIF
+    global PROBA_THRESH
+    global BATCH_S
+    global VERB
+
+    HARD_BACK = args.hard_back
+    IM_PATH = args.im_path
+
+    NET_PATH = args.net_path
+    PRIOR_MODIF = args.prior_modif
+    PROBA_THRESH = args.proba_thresh
+    BATCH_S = args.batch_size
+    VERB = args.verbose
+
+    # read classes.flags
+    global CLASSES
+    try:
+        with open("classes.flags") as fd:
+            lines = fd.readlines()
+            if len(lines)!=TNB_CL:
+                print "Error: classes.flags must contain " + str(TNB_CL) + " lines, one for each class"
+                print "Exiting..."
+                sys.exit()
+            for k in range(TNB_CL):
+                try:
+                    if int(lines[k].split()[1]):
+                        CLASSES[k] = True
+                    else:
+                        CLASSES[k] = False
+                except (ValueError, IndexError) as e:
+                    print "Error: classes.flags file exists but may not be well formatted (at least one class does not have a proper boolean flag)"
+                    print "Exiting..."
+                    sys.exit()
+            global NB_CL
+            NB_CL = np.sum(CLASSES)
+    except IOError:
+        if VERB:
+            print "No classes.flags found: MaxiMask will output probabilities/masks for all classes"
+    
+    # if prior modif is requested read classes.priors
+    if PRIOR_MODIF:
+        global PRIORS
+        try:
+            with open("classes.priors") as fd:
+                lines = fd.readlines()
+                if len(lines)!=TNB_CL:
+                    print "Error: classes.priors must contain " + str(TNB_CL) + " lines, one for each class"
+                    print "Exiting..."
+                    sys.exit()
+                for k in range(TNB_CL):
+                    if CLASSES[k]:
+                        try:
+                            PRIORS[k] = float(lines[k].split()[1])
+                        except (ValueError, IndexError) as e:
+                            print "Error: classes.priors file exists but may not be well formatted (at least one requested class does not have a proper prior)"
+                            print "Exiting..."
+                            sys.exit()
+        except IOError:
+            if VERB:
+                print "No classes.priors file found whereas prior modification is requested: using default priors"
+    
+    # if probability thresholding is requested read classes.thresh
+    if PROBA_THRESH:
+        global THRESH
+        try:
+            with open("classes.thresh") as fd:
+                lines = fd.readlines()
+                if len(lines)!=TNB_CL:
+                    print "Error: classes.thresh must contain " + str(TNB_CL) + " lines, one for each class"
+                    print "Exiting..."
+                    sys.exit()
+                for k in range(TNB_CL):
+                    if CLASSES[k]:
+                        try:
+                            THRESH[k] = float(lines[k].split()[1])
+                        except (ValueError, IndexError) as e:
+                            print "Error: classes.thresh file exists but may not be well formatted (at least one requested class does not have a proper threshold)"
+                            print "Exiting..."
+                            sys.exit()
+        except IOError:
+            if VERB:
+                print "No classes.thresh file found whereas probability thresholding is requested: using default thresholds"
+    
+    
+def main():
+    
+    # setup all parameters
+    setup_params()
 
     # gpu options
     config = tf.ConfigProto()
@@ -257,18 +389,46 @@ def main():
     
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
-        nsaver = tf.train.import_meta_graph(net_path + "/" + hard_backend + "_model.meta")
-        nsaver.restore(sess, net_path + "/model-150000")
+        nsaver = tf.train.import_meta_graph(NET_PATH + "/" + HARD_BACK + "_model.meta")
+        nsaver.restore(sess, NET_PATH + "/model")
         
-        if os.path.isfile(src_im_path) or src_im_path[-1]=="]":
+        if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
             # process the image
-            process_file(src_im_path, sess, max_b, IM_SIZE, NB_CL)
+            if VERB: print "Processing " + IM_PATH
+            process_file(sess, "")
+            if VERB: print IM_PATH + " done"
         else:
             # process all the images of the directory
-            for src_im_s in os.listdir(src_im_path):
+            if VERB: print "Processing " + IM_PATH
+            for src_im_s in os.listdir(IM_PATH):
                 if "fits" in src_im_s:
-                    process_file(src_im_path + "/" + src_im_s, sess, max_b, IM_SIZE, NB_CL)
+                    if VERB: print "Processing " + IM_PATH + "/" + src_im_s
+                    process_file(sess, src_im_s)
+                    if VERB: print IM_PATH + "/" + src_im_s + " done"
 
 
 if __name__=="__main__":
+    # parameter values that should never change and should not be changed by user
+    IM_SIZE = 400
+    IM2 = IM_SIZE/2
+    IM4 = IM_SIZE/4
+    TNB_CL = 14
+    TR_PRIORS = np.array([0.00224, 0.00803, 0.00796, 0.00800, 0.00035, 0.00035, 0.00911, 0.07027, 0.12188, 0.16426, 0.00161, 0.01409, 0.07717, 0.58629])
+
+    # parameter which values are read from command line
+    HARD_BACK = None
+    IM_PATH = None
+
+    NET_PATH = None
+    PRIOR_MODIF = None
+    PROBA_THRESH = None
+    BATCH_S = None
+    VERB = None
+
+    # default parameter values that can change depending on user specification 
+    CLASSES = np.ones([TNB_CL], dtype=np.bool)
+    NB_CL = np.sum(CLASSES)
+    PRIORS = np.array([0.0002, 0.0008, 0.0008, 0.0008, 0.000035, 0.000035, 0.00001, 0.001, 0.00001, 0.00001, 0.0016, 0.014, 0.07, 0.90])
+    THRESH = np.array([0.61, 0.61, 0.61, 0.56, 0.59, 0.96, 0.91, 0.45, 0.83, 0.46, 0.92, 0.76, 0.53, 0.52])
+
     main()

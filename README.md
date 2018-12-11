@@ -9,48 +9,89 @@ MaxiMask is a convolutional neural network that detects contaminants in astronom
 
 (Older versions may work but it has not been tested)
 
-# Usage
-The current version has 3 "modes" and should be used as following:
+# Minimal use
+The minimal way to run MaxiMask is:
 ```
-python MaxiMask.py <cpu|gpu> <nn_path> <src_im_path> <optional batch_size>
+python MaxiMask.py <cpu|gpu> <im_path>
 ```
 Where:
-* **cpu|gpu** is a string specifying if you are using CPU or GPU (CPU will be much slower than GPU).  
-**MaxiWarning**: if you use a GPU tensorflow version while specifying cpu, it will run properly but will produce incorrect results.
-* **nn_path** is the path to the neural network save directory: by default it should be </path_to_repository/MaxiMask/model>.
-* **src_im_path** is the path to the image(s) to be processed.
-* **batch_size** is an optional parameter to modify the batch size. Default is 8 but you might use a lower value like if you don't have enough RAM available (or a higher value if you have a lot of RAM).
-
-The 3 modes depend on the _src_im_path_ parameter:
-* if it is a file precising a specific HDU (CFITSIO notation) like <file.fits[nb_hdu]>, it will process only the hdu <nb_hdu> of <file.fits>. 
+* <cpu|gpu> indicates your tensorflow installation hardware backend
+* <im_path> indicates the images you want to process. It can specify:
+  - A specific image HDU (CFITSIO notation) like <file.fits[nb_hdu]>: MaxiMask will process only the hdu <nb_hdu> of <file.fits>. 
 This should return a file <file.masks<nb_hdu>.fits> with the masks in the Primary HDU.
-* if it is a file like <file.fits>, it will process all the HDUs that contain 2D data and copy the source image HDU otherwise.
+  - A fits file like <file.fits>: MaxiMask will process all the image HDUs that contain 2D data and copy the source HDU otherwise.
 This should return a file <file.masks.fits> that has the same HDU structure than <file.fits>.
-* if it is a directory, it will process all the fits images of this directory as in the previous case.
-This should return all the mask files in the same directory.
+  - A directory: MaxiMask will process all the fits images of this directory as in the previous case.
+This should return all the mask files in the same directory. 
 
-Behind the scene, processing an HDU consists in:
-* estimating the sky background
-* applying the dynamic compression
-* slicing it into 400x400 sub images
-* infering the 400x400 sub probability maps
-* reconstructing the probability maps
+# General use
+Here is full description of MaxiMask. You can obtain it by running ``` python MaxiMask.py -h```
+```
+usage: MaxiMask.py [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]  
+                   [--proba_thresh PROBA_THRESH] [--batch_size BATCH_SIZE]  
+                   [-v]  
+                   {cpu,gpu} im_path  
 
-# Class order:
-* 1 CR: cosmic rays 
-* 2 HC: hot columns
-* 3 BC: bad columns
-* 4 BL: bad lines
-* 5 HP: hot pixels
-* 6 BP: bad pixels
-* 7 P: persistence
-* 8 STL: satellite trails
-* 9 FR: fringe patterns
-* 10 NEB: nebulosities
-* 11 SAT: saturated pixels
-* 12 SP: diffraction spikes
-* 13 BBG: bright background
-* 14 BG: background
+MaxiMask command line parameters:
+
+positional arguments:
+  {cpu,gpu}             <cpu> or <gpu> depending on your tensorflow
+                        installation hardware backend
+  im_path               path the image(s) to be processed
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --net_path NET_PATH   path to the neural network graphs and weights
+                        directory. Default is </abs_path_to_rep/model>
+  --prior_modif PRIOR_MODIF
+                        bool indicating if probability maps should be prior
+                        modified. Default is True
+  --proba_thresh PROBA_THRESH
+                        bool indicating if probability maps should be
+                        thresholded. Default is True
+  --batch_size BATCH_SIZE
+                        neural network batch size. Default is 8. You might
+                        want to use a lower value if you have RAM issues
+  -v, --verbose         increase output verbosity
+```
+
+### Probability prior modification
+The prior modification aims to modify the MaxiMask output probabilities to match new priors, i.e new class proportions.  
+When it is requested (default behaviour), MaxiMask will look for a file named _classes.priors_ containing the new priors.  
+If prior modification is requested and this file does not exist, it will use default priors indicated in the example file _classes.priors_, which also shows the required syntax.
+
+### Probability thresholding
+The probability thresholding aims to threshold the MaxiMask output probabilities to obtain uint8 maps instead of float32 maps. One can use various thresholds to trade off true positive rate vs false positive rate.   
+When it is requested (default behaviour), MaxiMask will look for a file named _classes.thresh_ containing the thresholds.  
+If probability thresholding is requested and this file does not exist, it will use default thresholds indicated in the example file _classes.thresh_, which also shows the required syntax.
+
+### Class selection
+Selecting some specific classes can be done using a file named _classes.flags_ where one can indicate which classes are requested with 0 and 1. Example of the required syntax is given is _classes.flags_.  
+MaxiMask will automatically look for _classes.flags_. If it does not exist, MaxiMask will output probability/binary maps for all classes.
+
+### File syntax and class names 
+For more convenience when modifying _classes.flags_, _classes.priors_ or _classes.thresh_, the syntax choice has been to use two space separated columns:
+1. the abbreviated class names.
+2. the values of interest.
+
+This is the required syntax. If not respected while reading such a file, MaxiMask will exit with an appropriate error message.  
+(Note that _classes.priors_ and _classes.thresh_ should contain one line per class even when not all classes are requested; lines of non requested classes will just be ignored).
+
+Abbreviated names stand for:
+* CR: cosmic rays 
+* HC: hot columns
+* BC: bad columns
+* BL: bad lines
+* HP: hot pixels
+* BP: bad pixels
+* P: persistence
+* STL: satellite trails
+* FR: fringe patterns
+* NEB: nebulosities
+* SAT: saturated pixels
+* SP: diffraction spikes
+* BBG: bright background
+* BG: background
 
 # LICENSE
 Copyright (c) 2018 Maxime Paillassa. 
