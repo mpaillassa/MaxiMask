@@ -218,7 +218,7 @@ def process_file(sess, src_im_s):
             hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
         else:
             hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
-        hdu.writeto(im_path[:-n].replace(".fits", ".masks" + spec_hdu + ".fits"), overwrite=True)
+        hdu.writeto(im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits", overwrite=True)
     else:
         # process all hdus containing data
         with fits.open(im_path) as src_im_hdu:
@@ -256,8 +256,8 @@ def process_file(sess, src_im_s):
                     hdu.append(src_im_hdu[k])
                 if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " done"
            
-            if VERB: "Writing " + im_path.replace(".fits", ".masks.fits") + " to disk"
-            hdu.writeto(im_path.replace(".fits", ".masks.fits"), overwrite=True)
+            if VERB: "Writing " + im_path.split(".fits")[0] + ".masks.fits" + " to disk"
+            hdu.writeto(im_path.split(".fits")[0] + ".masks.fits", overwrite=True)
 
 
 def str2bool(v):

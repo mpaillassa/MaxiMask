@@ -31,7 +31,7 @@ If you run:
 ```
 python MaxiMask.py <cpu|gpu> test_im.fits.fz
 ```
-You should obtain a file named <test_im.masks.fits.fz> (though not compressed) that is the same as <test_out.fits.fz>.
+You should obtain a file named <test_im.masks.fits> that has the content as <test_out.fits.fz>.
 
 ## General use
 Here is full description of MaxiMask. You can obtain it by running ``` python MaxiMask.py -h```
