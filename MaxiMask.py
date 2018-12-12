@@ -256,7 +256,7 @@ def process_file(sess, src_im_s):
                     hdu.append(src_im_hdu[k])
                 if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " done"
            
-            if VERB: "Writing " + im_path.split(".fits")[0] + ".masks.fits" + " to disk"
+            if VERB: "Writing " + im_path.split(".fits")[0] + ".masks.fits to disk"
             hdu.writeto(im_path.split(".fits")[0] + ".masks.fits", overwrite=True)
 
 
