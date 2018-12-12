@@ -1,5 +1,5 @@
 # MaxiMask
-MaxiMask is a convolutional neural network that detects contaminants in astronomical images.
+MaxiMask is a convolutional neural network (CNN) that detects contaminants in astronomical images.
 
 # Dependencies
 * Python 2.7
@@ -9,13 +9,15 @@ MaxiMask is a convolutional neural network that detects contaminants in astronom
 
 (Older versions may work but it has not been tested)
 
-# Minimal use
+# Usage
+
+## Minimal use
 The minimal way to run MaxiMask is:
 ```
 python MaxiMask.py <cpu|gpu> <im_path>
 ```
 Where:
-* <cpu|gpu> indicates your tensorflow installation hardware backend
+* <cpu|gpu> indicates your tensorflow installation hardware backend. It should always be <cpu> or <gpu>.
 * <im_path> indicates the images you want to process. It can specify:
   - A specific image HDU (CFITSIO notation) like <file.fits[nb_hdu]>: MaxiMask will process only the hdu <nb_hdu> of <file.fits>. 
 This should return a file <file.masks<nb_hdu>.fits> with the masks in the Primary HDU.
@@ -24,7 +26,14 @@ This should return a file <file.masks.fits> that has the same HDU structure than
   - A directory: MaxiMask will process all the fits images of this directory as in the previous case.
 This should return all the mask files in the same directory. 
 
-# General use
+## Minimal example
+If you run:
+```
+python MaxiMask.py <cpu|gpu> test_im.fits.fz
+```
+You should obtain a file named <test_im.masks.fits.fz> (though not compressed) that is the same as <test_out.fits.fz>.
+
+## General use
 Here is full description of MaxiMask. You can obtain it by running ``` python MaxiMask.py -h```
 ```
 usage: MaxiMask.py [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]  
@@ -54,6 +63,9 @@ optional arguments:
                         want to use a lower value if you have RAM issues
   -v, --verbose         increase output verbosity
 ```
+
+The CNN outputs are probability maps for each class.  
+By default MaxiMask will prior adjust and threshold these probabilities with default parameters.
 
 ### Probability prior modification
 The prior modification aims to modify the MaxiMask output probabilities to match new priors, i.e new class proportions.  
