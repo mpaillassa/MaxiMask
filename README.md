@@ -8,7 +8,6 @@ MaxiMask is a convolutional neural network (CNN) that detects contaminants in as
 * tensorflow or tensorflow-gpu >=1.9
 
 (Older versions may work but it has not been tested)
-
 # Usage
 
 ## Minimal use
@@ -17,7 +16,7 @@ The minimal way to run MaxiMask is:
 python MaxiMask.py <cpu|gpu> <im_path>
 ```
 Where:
-* <cpu|gpu> indicates your tensorflow installation hardware backend. It should always be <cpu> or <gpu>.
+* <cpu|gpu> indicates your tensorflow installation hardware backend. It should always be "cpu" or "gpu". CPU is expected to be much slower than GPU.
 * <im_path> indicates the images you want to process. It can specify:
   - A specific image HDU (CFITSIO notation) like <file.fits[nb_hdu]>: MaxiMask will process only the hdu <nb_hdu> of <file.fits>. 
 This should return a file <file.masks<nb_hdu>.fits> with the masks in the Primary HDU.
