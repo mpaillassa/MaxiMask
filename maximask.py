@@ -380,16 +380,16 @@ def main():
     # setup all parameters
     setup_params()
 
-    # gpu options
     config = tf.ConfigProto()
-    config.gpu_options.allow_growth=True
-    
+    if tf.test.is_gpu_available():
+        hard_back = "gpu"
+        config.gpu_options.allow_growth = True
+    else:
+        hard_back = "cpu"
+        
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
-        if tf.test.is_gpu_available():
-            nsaver = tf.train.import_meta_graph(NET_PATH + "/gpu_model.meta")
-        else:
-            nsaver = tf.train.import_meta_graph(NET_PATH + "/cpu_model.meta")
+        nsaver = tf.train.import_meta_graph(NET_PATH + "/" + hard_back + "_model.meta")
         nsaver.restore(sess, NET_PATH + "/model")
         
         if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
