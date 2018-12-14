@@ -2,10 +2,10 @@
 MaxiMask is a convolutional neural network (CNN) that detects contaminants in astronomical images.
 
 # Dependencies
-* Python 2.7
+* Python 2 or 3
 * Scipy >=1.0.1
 * Astropy >=2.0.7
-* tensorflow or tensorflow-gpu >=1.9
+* tensorflow or tensorflow-gpu >=1.9 (CPU is expected to be much slower than GPU)
 
 (Older versions may work but it has not been tested)
 # Usage
@@ -13,11 +13,9 @@ MaxiMask is a convolutional neural network (CNN) that detects contaminants in as
 ## Minimal use
 The minimal way to run MaxiMask is:
 ```
-python MaxiMask.py <cpu|gpu> <im_path>
+python maximask.py <im_path>
 ```
-Where:
-* <cpu|gpu> indicates your tensorflow installation hardware backend. It should always be "cpu" or "gpu". CPU is expected to be much slower than GPU.
-* <im_path> indicates the images you want to process. It can specify:
+Where <im_path> indicates the images you want to process. It can specify:
   - A specific image HDU (CFITSIO notation) like <file.fits[nb_hdu]>: MaxiMask will process only the hdu <nb_hdu> of <file.fits>. 
 This should return a file <file.masks<nb_hdu>.fits> with the masks in the Primary HDU.
   - A fits file like <file.fits>: MaxiMask will process all the image HDUs that contain 2D data and copy the source HDU otherwise.
@@ -28,23 +26,21 @@ This should return all the mask files in the same directory.
 ## Minimal example
 If you run:
 ```
-python MaxiMask.py <cpu|gpu> test_im.fits.fz
+python maximask.py test_im.fits.fz
 ```
 You should obtain a file named <test_im.masks.fits> that has the content as <test_out.fits.fz>.
 
 ## General use
-Here is full description of MaxiMask. You can obtain it by running ``` python MaxiMask.py -h```
+Here is full description of MaxiMask. You can obtain it by running ``` python maximask.py -h```
 ```
-usage: MaxiMask.py [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]  
+usage: maximask.py [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]  
                    [--proba_thresh PROBA_THRESH] [--batch_size BATCH_SIZE]  
                    [-v]  
-                   {cpu,gpu} im_path  
+                   im_path  
 
 MaxiMask command line parameters:
 
 positional arguments:
-  {cpu,gpu}             <cpu> or <gpu> depending on your tensorflow
-                        installation hardware backend
   im_path               path the image(s) to be processed
 
 optional arguments:

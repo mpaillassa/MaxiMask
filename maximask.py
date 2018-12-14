@@ -20,8 +20,8 @@ def background_est(im):
     mesh_size = 200
 
     # get the number blocks to process
-    h_blocks = (h-h%mesh_size)/mesh_size
-    w_blocks = (w-w%mesh_size)/mesh_size
+    h_blocks = (h-h%mesh_size)//mesh_size
+    w_blocks = (w-w%mesh_size)//mesh_size
     x_l, y_l = [], []
     for y in range(h_blocks):
         for x in range(w_blocks):
@@ -63,7 +63,7 @@ def background_est(im):
     # build the little mesh to median filter and to interpolate
     to_interp = np.zeros([h_blocks, w_blocks])
     for b in range(nb_blocks):
-        to_interp[y_l[b]/mesh_size, x_l[b]/mesh_size] = z[b]
+        to_interp[int(y_l[b]/mesh_size), int(x_l[b]/mesh_size)] = z[b]
         
     to_interp2 = np.zeros([h_blocks+2, w_blocks+2])
     to_interp2[1:-1, 1:-1] = to_interp
@@ -134,8 +134,8 @@ def process_hdu(src_im, results, sess):
 
     h,w = src_im.shape
     if h<IM_SIZE or w<IM_SIZE:
-        print "One of the two image dimension is less than " + str(IM_SIZE) + " : not supported yet"
-        print "Exiting..."
+        print("One of the two image dimension is less than " + str(IM_SIZE) + " : not supported yet")
+        print("Exiting...")
         sys.exit()
 
     # list of positions to make inference on
@@ -157,7 +157,7 @@ def process_hdu(src_im, results, sess):
         process_batch(src_im, results, sess, len(tot_l), tot_l, 0, len(tot_l))
     # otherwise iterate over all batches to do
     else:
-        nb_step = len(tot_l)/BATCH_S+1
+        nb_step = len(tot_l)//BATCH_S+1
         for st in range(nb_step-1):
             if st<nb_step-1:
                 process_batch(src_im, results, sess, BATCH_S, tot_l, st*BATCH_S, (st+1)*BATCH_S)
@@ -197,8 +197,8 @@ def process_file(sess, src_im_s):
         n = int(len(spec_hdu)+2)
         with fits.open(im_path[:-n]) as src_im_hdu:
             if int(spec_hdu)>len(src_im_hdu):
-                print "Error: requesting hdu " + spec_hdu + " when image has only " + str(len(src_im_hdu)) + " hdu(s)"
-                print "Exiting..."
+                print("Error: requesting hdu " + spec_hdu + " when image has only " + str(len(src_im_hdu)) + " hdu(s)")
+                print("Exiting...")
                 sys.exit()
 
             src_im = src_im_hdu[int(spec_hdu)].data.astype(np.float32)
@@ -209,11 +209,11 @@ def process_file(sess, src_im_s):
         src_im -= bg_map
         sig = np.std(src_im)
         src_im /= sig
-        if VERB: print IM_PATH + " dynamic compression done"
+        if VERB: print(IM_PATH + " dynamic compression done")
 
         results = np.zeros([h,w,NB_CL], dtype=np.float32)
         process_hdu(src_im, results, sess)
-        if VERB: print IM_PATH + " inference done"
+        if VERB: print(IM_PATH + " inference done")
         if PROBA_THRESH:
             hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
         else:
@@ -234,11 +234,11 @@ def process_file(sess, src_im_s):
                     src_im -= bg_map
                     sig = np.std(src_im)
                     src_im /= sig
-                    if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done"
+                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done")
 
                     results = np.zeros([h,w,NB_CL], dtype=np.float32)
                     process_hdu(src_im, results, sess)
-                    if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done"
+                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done")
                     if k==0:
                         if PROBA_THRESH:
                             m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
@@ -254,9 +254,9 @@ def process_file(sess, src_im_s):
                 else:
                     # if this seems not to be data then copy the hdu
                     hdu.append(src_im_hdu[k])
-                if VERB: print "HDU " + str(k) + "/" + str(nb_hdu-1) + " done"
+                if VERB:print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done")
            
-            if VERB: "Writing " + im_path.split(".fits")[0] + ".masks.fits to disk"
+            if VERB: print("Writing " + im_path.split(".fits")[0] + ".masks.fits to disk")
             hdu.writeto(im_path.split(".fits")[0] + ".masks.fits", overwrite=True)
 
 
@@ -277,7 +277,6 @@ def setup_params():
     parser = argparse.ArgumentParser(description='MaxiMask command line parameters:')
 
     # necessary parameters
-    parser.add_argument("hard_back", type=str, help='<cpu> or <gpu> depending on your tensorflow installation hardware backend', choices=('cpu', 'gpu'))
     parser.add_argument("im_path", type=str, help='path the image(s) to be processed')
 
     # optional parameters
@@ -290,7 +289,6 @@ def setup_params():
     # read arguments
     args = parser.parse_args()
 
-    global HARD_BACK
     global IM_PATH
 
     global NET_PATH
@@ -299,7 +297,6 @@ def setup_params():
     global BATCH_S
     global VERB
 
-    HARD_BACK = args.hard_back
     IM_PATH = args.im_path
 
     NET_PATH = args.net_path
@@ -314,8 +311,8 @@ def setup_params():
         with open("classes.flags") as fd:
             lines = fd.readlines()
             if len(lines)!=TNB_CL:
-                print "Error: classes.flags must contain " + str(TNB_CL) + " lines, one for each class"
-                print "Exiting..."
+                print("Error: classes.flags must contain " + str(TNB_CL) + " lines, one for each class")
+                print("Exiting...")
                 sys.exit()
             for k in range(TNB_CL):
                 try:
@@ -324,14 +321,14 @@ def setup_params():
                     else:
                         CLASSES[k] = False
                 except (ValueError, IndexError) as e:
-                    print "Error: classes.flags file exists but may not be well formatted (at least one class does not have a proper boolean flag)"
-                    print "Exiting..."
+                    print("Error: classes.flags file exists but may not be well formatted (at least one class does not have a proper boolean flag)")
+                    print("Exiting...")
                     sys.exit()
             global NB_CL
             NB_CL = np.sum(CLASSES)
     except IOError:
         if VERB:
-            print "No classes.flags found: MaxiMask will output probabilities/masks for all classes"
+            print("No classes.flags found: MaxiMask will output probabilities/masks for all classes")
     
     # if prior modif is requested read classes.priors
     if PRIOR_MODIF:
@@ -340,20 +337,20 @@ def setup_params():
             with open("classes.priors") as fd:
                 lines = fd.readlines()
                 if len(lines)!=TNB_CL:
-                    print "Error: classes.priors must contain " + str(TNB_CL) + " lines, one for each class"
-                    print "Exiting..."
+                    print("Error: classes.priors must contain " + str(TNB_CL) + " lines, one for each class")
+                    print("Exiting...")
                     sys.exit()
                 for k in range(TNB_CL):
                     if CLASSES[k]:
                         try:
                             PRIORS[k] = float(lines[k].split()[1])
                         except (ValueError, IndexError) as e:
-                            print "Error: classes.priors file exists but may not be well formatted (at least one requested class does not have a proper prior)"
-                            print "Exiting..."
+                            print("Error: classes.priors file exists but may not be well formatted (at least one requested class does not have a proper prior)")
+                            print("Exiting...")
                             sys.exit()
         except IOError:
             if VERB:
-                print "No classes.priors file found whereas prior modification is requested: using default priors"
+                print("No classes.priors file found whereas prior modification is requested: using default priors")
     
     # if probability thresholding is requested read classes.thresh
     if PROBA_THRESH:
@@ -362,20 +359,20 @@ def setup_params():
             with open("classes.thresh") as fd:
                 lines = fd.readlines()
                 if len(lines)!=TNB_CL:
-                    print "Error: classes.thresh must contain " + str(TNB_CL) + " lines, one for each class"
-                    print "Exiting..."
+                    print("Error: classes.thresh must contain " + str(TNB_CL) + " lines, one for each class")
+                    print("Exiting...")
                     sys.exit()
                 for k in range(TNB_CL):
                     if CLASSES[k]:
                         try:
                             THRESH[k] = float(lines[k].split()[1])
                         except (ValueError, IndexError) as e:
-                            print "Error: classes.thresh file exists but may not be well formatted (at least one requested class does not have a proper threshold)"
-                            print "Exiting..."
+                            print("Error: classes.thresh file exists but may not be well formatted (at least one requested class does not have a proper threshold)")
+                            print("Exiting...")
                             sys.exit()
         except IOError:
             if VERB:
-                print "No classes.thresh file found whereas probability thresholding is requested: using default thresholds"
+                print("No classes.thresh file found whereas probability thresholding is requested: using default thresholds")
     
     
 def main():
@@ -389,34 +386,36 @@ def main():
     
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
-        nsaver = tf.train.import_meta_graph(NET_PATH + "/" + HARD_BACK + "_model.meta")
+        if tf.test.is_gpu_available():
+            nsaver = tf.train.import_meta_graph(NET_PATH + "/gpu_model.meta")
+        else:
+            nsaver = tf.train.import_meta_graph(NET_PATH + "/cpu_model.meta")
         nsaver.restore(sess, NET_PATH + "/model")
         
         if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
             # process the image
-            if VERB: print "Processing " + IM_PATH
+            if VERB: print("Processing " + IM_PATH)
             process_file(sess, "")
-            if VERB: print IM_PATH + " done"
+            if VERB: print(IM_PATH + " done")
         else:
             # process all the images of the directory
-            if VERB: print "Processing " + IM_PATH
+            if VERB: print("Processing " + IM_PATH)
             for src_im_s in os.listdir(IM_PATH):
                 if "fits" in src_im_s:
-                    if VERB: print "Processing " + IM_PATH + "/" + src_im_s
+                    if VERB: print("Processing " + IM_PATH + "/" + src_im_s)
                     process_file(sess, src_im_s)
-                    if VERB: print IM_PATH + "/" + src_im_s + " done"
+                    if VERB: print(IM_PATH + "/" + src_im_s + " done")
 
 
 if __name__=="__main__":
     # parameter values that should never change and should not be changed by user
     IM_SIZE = 400
-    IM2 = IM_SIZE/2
-    IM4 = IM_SIZE/4
+    IM2 = IM_SIZE//2
+    IM4 = IM_SIZE//4
     TNB_CL = 14
     TR_PRIORS = np.array([0.00224, 0.00803, 0.00796, 0.00800, 0.00035, 0.00035, 0.00911, 0.07027, 0.12188, 0.16426, 0.00161, 0.01409, 0.07717, 0.58629])
 
     # parameter which values are read from command line
-    HARD_BACK = None
     IM_PATH = None
 
     NET_PATH = None
