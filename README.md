@@ -13,7 +13,7 @@ MaxiMask is a convolutional neural network (CNN) that detects contaminants in as
 ## Minimal use
 The minimal way to run MaxiMask is:
 ```
-python maximask.py <im_path>
+./maximask.py <im_path>
 ```
 Where <im_path> indicates the images you want to process. It can specify:
   - A specific image HDU (CFITSIO notation) like <file.fits[nb_hdu]>: MaxiMask will process only the hdu <nb_hdu> of <file.fits>. 
@@ -22,21 +22,31 @@ This should return a file <file.masks<nb_hdu>.fits> with the masks in the Primar
 This should return a file <file.masks.fits> that has the same HDU structure than <file.fits>.
   - A directory: MaxiMask will process all the fits images of this directory as in the previous case.
 This should return all the mask files in the same directory. 
+  - A list file: this must be a file with <.list> extension containing one fits file path </path/to/file.fits> per line. MaxiMask will process each file as in the second case. 
+
+You can add the repository path to your PATH variable to use it anywhere in your machine (add the following line to your .bashrc to make it permanent):
+```
+export PATH=$PATH:/path/to/MaxiMask/repository
+```
+You can also create a symbolic link using the following command in the MaxiMask repository directory:
+```
+ln -sf maximask.py maximask
+```
 
 ## Minimal example
 If you run:
 ```
-python maximask.py test_im.fits.fz
+maximask test_im.fits.fz
 ```
 You should obtain a file named <test_im.masks.fits> that has the content as <test_out.fits.fz>.
 
 ## General use
-Here is full description of MaxiMask. You can obtain it by running ``` python maximask.py -h```
+Here is full description of MaxiMask. You can obtain it by running ```maximask -h```
 ```
-usage: maximask.py [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]  
-                   [--proba_thresh PROBA_THRESH] [--batch_size BATCH_SIZE]  
-                   [-v]  
-                   im_path  
+usage: maximask [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]  
+                [--proba_thresh PROBA_THRESH] [--batch_size BATCH_SIZE]  
+                [-v]  
+                im_path  
 
 MaxiMask command line parameters:
 

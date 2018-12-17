@@ -6,6 +6,7 @@
 import os
 import sys
 import math
+import time
 import argparse
 import numpy as np
 import scipy.interpolate as interp
@@ -13,6 +14,20 @@ import scipy.signal as sign
 from astropy.io import fits
 
 import tensorflow as tf
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
+def timeit(f):
+    """
+    """
+    
+    def timed(*args, **kw):
+        ts = time.time()
+        result = f(*args, **kw)
+        te = time.time()
+        
+        return round(te-ts, 3)
+
+    return timed
 
 
 def background_est(im):
@@ -92,6 +107,19 @@ def background_est(im):
     return back_val 
 
 
+@timeit
+def dynamic_compression(im):
+    """
+    """
+
+    np.place(im, im==np.isnan, 0)
+
+    bg_map = background_est(im)
+    im -= bg_map
+    sig = np.std(im)
+    im /= sig
+
+
 def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
     """ Process one batch
     """
@@ -131,6 +159,7 @@ def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
         k += 1
 
 
+@timeit
 def process_hdu(src_im, results, sess):
     """ Process one hdu 
     """
@@ -183,15 +212,53 @@ def process_hdu(src_im, results, sess):
         results[(results <= thresholds)] = 0
 
 
+def fill_hdu_header(hdu):
+    """
+    """
+
+    hdu.header['MM_UTC'] = time.asctime(time.gmtime())
+    hdu.header.comments['MM_UTC'] = "MaxiMask UTC processing date"
+    hdu.header['MM_LOC'] = time.asctime(time.localtime())
+    hdu.header.comments['MM_LOC'] = "MaxiMask LOC processing date"
+    hdu.header['MM_TF_V'] = tf.__version__
+    hdu.header.comments['MM_TF_V'] = "MaxiMask tensorflow version used"
+    hdu.header['MM_HBACK'] = H_BACK.upper()
+    hdu.header.comments['MM_HBACK'] = "MaxiMask tensorflow hardware used"
+
+    cl = 1
+    for tcl in range(TNB_CL):
+        if CLASSES[tcl]:
+            hdu.header['M' + str(cl)] = CLASS_NAMES[tcl]
+            hdu.header.comments['M' + str(cl)] = "Mask " + str(cl) + " class name"
+            hdu.header['M' + str(cl) + '_PR'] = PRIORS[tcl]
+            hdu.header.comments['M' + str(cl) + '_PR'] = "Mask " + str(cl) + " class prior"
+            hdu.header['M' + str(cl) + '_TH'] = THRESH[tcl]
+            hdu.header.comments['M' + str(cl) + '_TH'] = "Mask " + str(cl) + " class threshold"
+            cl += 1
+
+
+@timeit
+def write_hdu(hdu, name):
+    """
+    """
+    
+    hdu.writeto(name, overwrite=True)
+
+
 def process_file(sess, src_im_s):
     """ Process one fits file
     If the hdu is specified in the name of the file by <[nb]> it processes the hdu <nb>
     Otherwise it processes all the hdus containing data
     """
-    
-    if src_im_s!="":
+
+    if src_im_s!="" and IM_PATH[-5:]!=".list":
+        # processing images of a given directory
         im_path = IM_PATH + "/" + src_im_s
+    elif IM_PATH[-5:]==".list":
+        # processing images of a given list file
+        im_path = src_im_s
     else:
+        # processing a single image
         im_path = IM_PATH
 
     if im_path[-1]=="]":
@@ -203,64 +270,108 @@ def process_file(sess, src_im_s):
                 print("Error: requesting hdu " + spec_hdu + " when image has only " + str(len(src_im_hdu)) + " hdu(s)")
                 print("Exiting...")
                 sys.exit()
+            src_im = src_im_hdu[int(spec_hdu)].data
 
-            src_im = src_im_hdu[int(spec_hdu)].data.astype(np.float32)
+        if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0])==np.float32:
             h,w = src_im.shape
 
-        # dynamic compression
-        bg_map = background_est(src_im)
-        src_im -= bg_map
-        sig = np.std(src_im)
-        src_im /= sig
-        if VERB: print(IM_PATH + " dynamic compression done")
+            if np.any(src_im):
+                # dynamic compression
+                t1 = dynamic_compression(src_im)
+                if VERB: 
+                    speed1 = str(round((h*w)/(t1*1000000), 3))
+                    print(IM_PATH + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
 
-        results = np.zeros([h,w,NB_CL], dtype=np.float32)
-        process_hdu(src_im, results, sess)
-        if VERB: print(IM_PATH + " inference done")
-        if PROBA_THRESH:
-            hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+                # inference
+                results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                t2 = process_hdu(src_im, results, sess)
+                if VERB: 
+                    speed2 = str(round((h*w)/(t2*1000000), 3))
+                    print(IM_PATH + " inference done in " + str(t2) + " s: " + speed2 + " MPix/s")
+            else:
+                # full zero image
+                results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                if VERB: print(IM_PATH + " inference done (image is null, output is null)")
+                
+            if VERB: 
+                speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
+                print(IM_PATH + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
+
+            # writing
+            if PROBA_THRESH:
+                hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+            else:
+                hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
+            fill_hdu_header(hdu)
+            tw = write_hdu(hdu, im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits")
+            if VERB: 
+                print(im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits written to disk in " + str(tw) + " s")
+                speedt = str(round((h*w)/((t1+t2+tw)*1000000), 3))
+                print("Total time: " + str(t1+t2+tw) + " s: " + speedt + " MPix/s")
         else:
-            hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
-        hdu.writeto(im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits", overwrite=True)
+            print("Error: requested hdu " + spec_hdu + " does not contain either 2D data or float data")
+            print("Exiting...")
+            sys.exit()
     else:
+        timelog = []
         # process all hdus containing data
         with fits.open(im_path) as src_im_hdu:
             nb_hdu = len(src_im_hdu)
             hdu = fits.HDUList()
             for k in range(nb_hdu):
-                if len(src_im_hdu[k].shape)==2:
-                    src_im = src_im_hdu[k].data.astype(np.float32)
+                src_im = src_im_hdu[k].data
+
+                if len(src_im_hdu[k].shape)==2 and type(src_im[0,0])==np.float32:
                     h,w = src_im.shape
+                    
+                    if np.any(src_im):
+                        # dynamic compression
+                        t1 = dynamic_compression(src_im)
+                        if VERB: 
+                            speed1 = str(round((h*w)/(t1*1000000), 3))
+                            print("HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
 
-                    # dynamic compression
-                    bg_map = background_est(src_im)
-                    src_im -= bg_map
-                    sig = np.std(src_im)
-                    src_im /= sig
-                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done")
-
-                    results = np.zeros([h,w,NB_CL], dtype=np.float32)
-                    process_hdu(src_im, results, sess)
-                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done")
+                        # inference
+                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                        t2 = process_hdu(src_im, results, sess)
+                        if VERB: 
+                            speed2 = str(round((h*w)/(t2*1000000), 3))
+                            print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done in " + str(t2) + " s: " + speed2 + " MPix/s")
+                            speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
+                        full_zero = False
+                        timelog.append(t1+t2)
+                    else:
+                        # full zero image
+                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                        if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done (image is null, output is null)")
+                        full_zero = True
+    
                     if k==0:
-                        if PROBA_THRESH:
+                        if PROBA_THRESH or full_zero:
                             m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
                         else:
                             m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
+                        fill_hdu_header(m_hdu)
                         hdu.append(m_hdu)
                     else:
-                        if PROBA_THRESH:
+                        if PROBA_THRESH or full_zero:
                             sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
                         else:
                             sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)))
+                        fill_hdu_header(sub_hdu)
                         hdu.append(sub_hdu)
+                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
                 else:
                     # if this seems not to be data then copy the hdu
                     hdu.append(src_im_hdu[k])
-                if VERB:print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done")
+                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done (just copied as it is not 2D float data)") 
            
-            if VERB: print("Writing " + im_path.split(".fits")[0] + ".masks.fits to disk")
-            hdu.writeto(im_path.split(".fits")[0] + ".masks.fits", overwrite=True)
+            tw = write_hdu(hdu, im_path.split(".fits")[0] + ".masks.fits")
+            if VERB: 
+                print(im_path.split(".fits")[0] + ".masks.fits written to disk in " + str(tw) + " s")
+                tt = sum(timelog) + tw
+                speedt = str(round((h*w)*len(timelog)/(tt*1000000), 3))
+                print("Total time: " + str(tt) + " s: " + speedt + " MPix/s")
 
 
 def str2bool(v):
@@ -384,22 +495,36 @@ def main():
     setup_params()
 
     config = tf.ConfigProto()
+    global H_BACK
     if tf.test.is_gpu_available():
-        hard_back = "gpu"
+        H_BACK = "gpu"
         config.gpu_options.allow_growth = True
+        print("MaxiMask is using GPU")
     else:
-        hard_back = "cpu"
+        H_BACK = "cpu"
+        print("MaxiMask is using CPU")
         
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
-        nsaver = tf.train.import_meta_graph(NET_PATH + "/" + hard_back + "_model.meta")
+        nsaver = tf.train.import_meta_graph(NET_PATH + "/" + H_BACK + "_model.meta")
         nsaver.restore(sess, NET_PATH + "/model")
         
         if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
-            # process the image
-            if VERB: print("Processing " + IM_PATH)
-            process_file(sess, "")
-            if VERB: print(IM_PATH + " done")
+            if IM_PATH[-5:]==".list":
+                # process all images of list file
+                with open(IM_PATH) as fd:
+                    lines = fd.readlines()
+                for src_im_s in lines:
+                    if "fits" in src_im_s:
+                        src_im_s = src_im_s.rstrip()
+                        if VERB: print("Processing " + src_im_s + " from " + IM_PATH + " list file")
+                        process_file(sess, src_im_s)
+                        if VERB: print
+            elif "fits" in IM_PATH:
+                # process the single file image
+                if VERB: print("Processing " + IM_PATH)
+                process_file(sess, "")
+                if VERB: print
         else:
             # process all the images of the directory
             if VERB: print("Processing " + IM_PATH)
@@ -407,7 +532,7 @@ def main():
                 if "fits" in src_im_s:
                     if VERB: print("Processing " + IM_PATH + "/" + src_im_s)
                     process_file(sess, src_im_s)
-                    if VERB: print(IM_PATH + "/" + src_im_s + " done")
+                    if VERB: print
 
 
 if __name__=="__main__":
@@ -432,5 +557,10 @@ if __name__=="__main__":
     NB_CL = np.sum(CLASSES)
     PRIORS = np.array([0.0002, 0.0008, 0.0008, 0.0008, 0.000035, 0.000035, 0.00001, 0.001, 0.00001, 0.00001, 0.0016, 0.014, 0.07, 0.90])
     THRESH = np.array([0.61, 0.61, 0.61, 0.56, 0.59, 0.96, 0.91, 0.45, 0.83, 0.46, 0.92, 0.76, 0.53, 0.52])
+
+    # other
+    #CLASS_ABBRV = ["CR", "HC", "BC", "BL", "HP", "BP", "P", "STL", "FR", "NEB", "SAT", "SP", "BBG", "BG"]
+    CLASS_NAMES = ["CR: Cosmic Rays", "HC: Hot Columns", "BC: Bad Columns", "BL: Bad Lines", "HP: Hot Pixels", "BP: Bad Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "BBG: Bright BackGround", "BG: BackGround"]
+    H_BACK = None
 
     main()
