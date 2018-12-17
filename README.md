@@ -32,13 +32,14 @@ You can also create a symbolic link using the following command in the MaxiMask 
 ```
 ln -sf maximask.py maximask
 ```
+So that you can just run ```maximask <im_path>``` from anywhere in your machine.
 
 ## Minimal example
 If you run:
 ```
 maximask test_im.fits.fz
 ```
-You should obtain a file named <test_im.masks.fits> that has the content as <test_out.fits.fz>.
+You should obtain a file named <test_im.masks.fits> that has the same content as <test_out.fits.fz>.
 
 ## General use
 Here is full description of MaxiMask. You can obtain it by running ```maximask -h```
