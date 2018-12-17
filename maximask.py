@@ -369,9 +369,10 @@ def process_file(sess, src_im_s):
             tw = write_hdu(hdu, im_path.split(".fits")[0] + ".masks.fits")
             if VERB: 
                 print(im_path.split(".fits")[0] + ".masks.fits written to disk in " + str(tw) + " s")
-                tt = sum(timelog) + tw
-                speedt = str(round((h*w)*len(timelog)/(tt*1000000), 3))
-                print("Total time: " + str(tt) + " s: " + speedt + " MPix/s")
+                if len(timelog):
+                    tt = sum(timelog) + tw
+                    speedt = str(round((h*w)*len(timelog)/(tt*1000000), 3))
+                    print("Total time: " + str(tt) + " s: " + speedt + " MPix/s")
 
 
 def str2bool(v):
