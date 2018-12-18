@@ -17,7 +17,7 @@ import tensorflow as tf
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 def timeit(f):
-    """
+    """ A decorator to measure execution time of a function
     """
     
     def timed(*args, **kw):
@@ -31,7 +31,7 @@ def timeit(f):
 
 
 def background_est(im):
-    """Process a Sextractor like background estimation
+    """ Process a Sextractor like background estimation
     """
     
     h,w = im.shape
@@ -109,59 +109,160 @@ def background_est(im):
 
 @timeit
 def dynamic_compression(im):
-    """
+    """ Dynamical compressing: sky background subtraction and sigma normalizing
     """
 
+    # just a check to remove eventual nan values
     np.place(im, im==np.isnan, 0)
 
+    # dynamic compression
     bg_map = background_est(im)
     im -= bg_map
     sig = np.std(im)
     im /= sig
 
 
-def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
-    """ Process one batch
+def process_file(sess, src_im_s):
+    """ Process one fits file: several behaviours depending on <IM_PATH> and <src_im_s>
     """
+
+    if src_im_s!="" and IM_PATH[-5:]!=".list":
+        # processing images of a given directory
+        im_path = IM_PATH + "/" + src_im_s
+    elif IM_PATH[-5:]==".list":
+        # processing images of a given list file
+        im_path = src_im_s
+    else:
+        # processing a single image (hdu)
+        im_path = IM_PATH
+
+    if im_path[-1]=="]":
+        # process the specified hdu
+        spec_hdu = im_path.split("[")[1].split("]")[0]
+        n = int(len(spec_hdu)+2)
+        with fits.open(im_path[:-n]) as src_im_hdu:
+            if int(spec_hdu)>len(src_im_hdu):
+                print("Error: requesting hdu " + spec_hdu + " when image has only " + str(len(src_im_hdu)) + " hdu(s)")
+                print("Exiting...")
+                sys.exit()
+            src_im = src_im_hdu[int(spec_hdu)].data
+
+        if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0])==np.float32:
+            h,w = src_im.shape
+
+            if np.any(src_im):
+                # dynamic compression
+                t1 = dynamic_compression(src_im)
+                if VERB: 
+                    speed1 = str(round((h*w)/(t1*1000000), 3))
+                    print(IM_PATH + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
+
+                # inference
+                results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                t2 = process_hdu(src_im, results, sess)
+                if VERB: 
+                    speed2 = str(round((h*w)/(t2*1000000), 3))
+                    print(IM_PATH + " inference done in " + str(t2) + " s: " + speed2 + " MPix/s")
+            else:
+                # full zero image
+                results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                if VERB: print(IM_PATH + " inference done (image is null, output is null)")
+                
+            if VERB: 
+                speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
+                print(IM_PATH + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
+
+            # writing
+            if PROBA_THRESH:
+                if SINGLE_MASK:
+                    hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1))[0].astype(np.uint16))
+                else:
+                    hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+            else:
+                hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
+            fill_hdu_header(hdu)
+            tw = write_hdu(hdu, im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits")
+            if VERB: 
+                print(im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits written to disk in " + str(tw) + " s")
+                speedt = str(round((h*w)/((t1+t2+tw)*1000000), 3))
+                print("Total time: " + str(t1+t2+tw) + " s: " + speedt + " MPix/s")
+        else:
+            print("Error: requested hdu " + spec_hdu + " does not contain either 2D data or float data")
+            print("Exiting...")
+            sys.exit()
+    else:
+        timelog = []
+        # process all hdus containing data
+        with fits.open(im_path) as src_im_hdu:
+            nb_hdu = len(src_im_hdu)
+            hdu = fits.HDUList()
+            for k in range(nb_hdu):
+                src_im = src_im_hdu[k].data
+
+                if len(src_im_hdu[k].shape)==2 and type(src_im[0,0])==np.float32:
+                    h,w = src_im.shape
+                    
+                    if np.any(src_im):
+                        # dynamic compression
+                        t1 = dynamic_compression(src_im)
+                        if VERB: 
+                            speed1 = str(round((h*w)/(t1*1000000), 3))
+                            print("HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
+
+                        # inference
+                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                        t2 = process_hdu(src_im, results, sess)
+                        if VERB: 
+                            speed2 = str(round((h*w)/(t2*1000000), 3))
+                            print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done in " + str(t2) + " s: " + speed2 + " MPix/s")
+                            speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
+                        full_zero = False
+                        timelog.append(t1+t2)
+                    else:
+                        # full zero image
+                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                        if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done (image is null, output is null)")
+                        full_zero = True
     
-    h,w = src_im.shape
-
-    inp = np.zeros([batch_s, IM_SIZE, IM_SIZE], dtype=np.float32)
-    tmp_results = np.zeros([batch_s, IM_SIZE, IM_SIZE, NB_CL], dtype=np.float32)
-
-    # prepare inputs and make inference
-    k = 0
-    for coord in tot_l[first_p:last_p]:
-        inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
-        k += 1
-    tmp_results = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1])})[:,:,:,CLASSES]
-
-    # copy in final mask
-    k = 0
-    for x,y in tot_l[first_p:last_p]:
-        results[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
-        if x==0:
-            results[IM4+y:y+IM_SIZE-IM4, x:x+IM4] = tmp_results[k][IM4:IM_SIZE-IM4, :IM4]
-        if y==0:
-            results[y:y+IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][:IM4, IM4:IM_SIZE-IM4]
-        if x==w-IM_SIZE:
-            results[IM4+y:y+IM_SIZE-IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM4:IM_SIZE-IM4, IM_SIZE-IM4:IM_SIZE]
-        if y==h-IM_SIZE:
-            results[y+IM_SIZE-IM4:y+IM_SIZE, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM4:IM_SIZE-IM4]
-        if x==0 and y==0:
-            results[y:y+IM4, x:x+IM4] = tmp_results[k][:IM4, :IM4]
-        if x==0 and y==h-IM_SIZE:
-            results[y+IM_SIZE-IM4:y+IM_SIZE, x:x+IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, :IM4]
-        if x==w-IM_SIZE and y==0:
-            results[y:y+IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:IM4, IM_SIZE-IM4:IM_SIZE]
-        if x==w-IM_SIZE and y==h-IM_SIZE:
-            results[y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
-        k += 1
+                    if k==0:
+                        if PROBA_THRESH or full_zero:
+                            if SINGLE_MASK:
+                                m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1))[0].astype(np.uint16))
+                            else:
+                                m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+                        else:
+                            m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
+                        fill_hdu_header(m_hdu)
+                        hdu.append(m_hdu)
+                    else:
+                        if PROBA_THRESH or full_zero:
+                            if SINGLE_MASK:
+                                sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1))[0].astype(np.uint16))
+                            else:
+                                sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
+                        else:
+                            sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)))
+                        fill_hdu_header(sub_hdu)
+                        hdu.append(sub_hdu)
+                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
+                else:
+                    # if this seems not to be data then copy the hdu
+                    hdu.append(src_im_hdu[k])
+                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done (just copied as it is not 2D float data)") 
+           
+            tw = write_hdu(hdu, im_path.split(".fits")[0] + ".masks.fits")
+            if VERB: 
+                print(im_path.split(".fits")[0] + ".masks.fits written to disk in " + str(tw) + " s")
+                if len(timelog):
+                    tt = sum(timelog) + tw
+                    speedt = str(round((h*w)*len(timelog)/(tt*1000000), 3))
+                    print("Total time: " + str(tt) + " s: " + speedt + " MPix/s")
 
 
 @timeit
 def process_hdu(src_im, results, sess):
-    """ Process one hdu 
+    """ Process one hdu: cut it into batches and process each batch
+    Compute prior modification and/or thresholding is requested
     """
 
     h,w = src_im.shape
@@ -211,9 +312,56 @@ def process_hdu(src_im, results, sess):
         results[(results > thresholds)] = 1
         results[(results <= thresholds)] = 0
 
+        if SINGLE_MASK:
+            cl = 1
+            pow2 = 2
+            for tcl in range(1, TNB_CL-1):
+                if CLASSES[tcl]:
+                    results[:,:,0] += pow2*results[:,:,tcl]
+                    pow2 *= 2
+
+
+def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
+    """ Process one batch of subimage: get corresponding predictions depending on subimage position in the field
+    """
+    
+    h,w = src_im.shape
+
+    inp = np.zeros([batch_s, IM_SIZE, IM_SIZE], dtype=np.float32)
+    tmp_results = np.zeros([batch_s, IM_SIZE, IM_SIZE, NB_CL], dtype=np.float32)
+
+    # prepare inputs and make inference
+    k = 0
+    for coord in tot_l[first_p:last_p]:
+        inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
+        k += 1
+    tmp_results = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1])})[:,:,:,CLASSES]
+
+    # copy in final mask
+    k = 0
+    for x,y in tot_l[first_p:last_p]:
+        results[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+        if x==0:
+            results[IM4+y:y+IM_SIZE-IM4, x:x+IM4] = tmp_results[k][IM4:IM_SIZE-IM4, :IM4]
+        if y==0:
+            results[y:y+IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][:IM4, IM4:IM_SIZE-IM4]
+        if x==w-IM_SIZE:
+            results[IM4+y:y+IM_SIZE-IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM4:IM_SIZE-IM4, IM_SIZE-IM4:IM_SIZE]
+        if y==h-IM_SIZE:
+            results[y+IM_SIZE-IM4:y+IM_SIZE, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM4:IM_SIZE-IM4]
+        if x==0 and y==0:
+            results[y:y+IM4, x:x+IM4] = tmp_results[k][:IM4, :IM4]
+        if x==0 and y==h-IM_SIZE:
+            results[y+IM_SIZE-IM4:y+IM_SIZE, x:x+IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, :IM4]
+        if x==w-IM_SIZE and y==0:
+            results[y:y+IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:IM4, IM_SIZE-IM4:IM_SIZE]
+        if x==w-IM_SIZE and y==h-IM_SIZE:
+            results[y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
+        k += 1
+
 
 def fill_hdu_header(hdu):
-    """
+    """ Fill the hdu header with corresponding informations
     """
 
     hdu.header['MM_UTC'] = time.asctime(time.gmtime())
@@ -225,157 +373,54 @@ def fill_hdu_header(hdu):
     hdu.header['MM_HBACK'] = H_BACK.upper()
     hdu.header.comments['MM_HBACK'] = "MaxiMask tensorflow hardware used"
 
-    cl = 1
-    for tcl in range(TNB_CL):
-        if CLASSES[tcl]:
-            hdu.header['M' + str(cl)] = CLASS_NAMES[tcl]
-            hdu.header.comments['M' + str(cl)] = "Mask " + str(cl) + " class name"
-            hdu.header['M' + str(cl) + '_PR'] = PRIORS[tcl]
-            hdu.header.comments['M' + str(cl) + '_PR'] = "Mask " + str(cl) + " class prior"
-            hdu.header['M' + str(cl) + '_TH'] = THRESH[tcl]
-            hdu.header.comments['M' + str(cl) + '_TH'] = "Mask " + str(cl) + " class threshold"
-            cl += 1
+    if not PRIOR_MODIF:
+        hdu.header['PRIOR'] = "No prior modification"
+    if not PROBA_THRESH:
+        hdu.header['THRESH'] = "No probability thresholding"
+
+    if PRIOR_MODIF or PROBA_THRESH:
+        cl = 1
+        pow2 = 1
+        for tcl in range(TNB_CL):
+            if CLASSES[tcl]:
+                if SINGLE_MASK:
+                    if tcl==TNB_CL-1:
+                        hdu.header[CLASS_ABBRV[tcl]] = 0
+                    else:
+                        hdu.header[CLASS_ABBRV[tcl]] = pow2
+                    hdu.header.comments[CLASS_ABBRV[tcl]] = CLASS_NAMES[tcl] + " mask value"
+
+                    if PRIOR_MODIF:
+                        hdu.header[CLASS_ABBRV[tcl] + '_PR'] = str(round(PRIORS[tcl], 6))
+                        hdu.header.comments[CLASS_ABBRV[tcl] + '_PR'] = CLASS_NAMES[tcl] + " class prior"
+                    
+                    hdu.header[CLASS_ABBRV[tcl] + '_TH'] = str(round(THRESH[tcl], 3))
+                    hdu.header.comments[CLASS_ABBRV[tcl] + '_TH'] = CLASS_NAMES[tcl] + " class threshold"
+                else:
+                    hdu.header['M' + str(cl)] = CLASS_NAMES[tcl]
+                    hdu.header.comments['M' + str(cl)] = "Mask " + str(cl) + " class name"
+                    if PRIOR_MODIF:
+                        hdu.header['M' + str(cl) + '_PR'] = str(round(PRIORS[tcl], 6))
+                        hdu.header.comments['M' + str(cl) + '_PR'] = "Mask " + str(cl) + " class prior"
+                    if PROBA_THRESH:
+                        hdu.header['M' + str(cl) + '_TH'] = str(round(THRESH[tcl], 3))
+                        hdu.header.comments['M' + str(cl) + '_TH'] = "Mask " + str(cl) + " class threshold"
+                pow2 *= 2
+                cl += 1
 
 
 @timeit
 def write_hdu(hdu, name):
-    """
+    """ Write a fits image to disk (separated in a function just to be decorated)
     """
     
     hdu.writeto(name, overwrite=True)
 
 
-def process_file(sess, src_im_s):
-    """ Process one fits file
-    If the hdu is specified in the name of the file by <[nb]> it processes the hdu <nb>
-    Otherwise it processes all the hdus containing data
+def str2bool(v):
+    """ Translating possible boolean inputs to boolean type
     """
 
-    if src_im_s!="" and IM_PATH[-5:]!=".list":
-        # processing images of a given directory
-        im_path = IM_PATH + "/" + src_im_s
-    elif IM_PATH[-5:]==".list":
-        # processing images of a given list file
-        im_path = src_im_s
-    else:
-        # processing a single image
-        im_path = IM_PATH
-
-    if im_path[-1]=="]":
-        # process the specified hdu
-        spec_hdu = im_path.split("[")[1].split("]")[0]
-        n = int(len(spec_hdu)+2)
-        with fits.open(im_path[:-n]) as src_im_hdu:
-            if int(spec_hdu)>len(src_im_hdu):
-                print("Error: requesting hdu " + spec_hdu + " when image has only " + str(len(src_im_hdu)) + " hdu(s)")
-                print("Exiting...")
-                sys.exit()
-            src_im = src_im_hdu[int(spec_hdu)].data
-
-        if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0])==np.float32:
-            h,w = src_im.shape
-
-            if np.any(src_im):
-                # dynamic compression
-                t1 = dynamic_compression(src_im)
-                if VERB: 
-                    speed1 = str(round((h*w)/(t1*1000000), 3))
-                    print(IM_PATH + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
-
-                # inference
-                results = np.zeros([h,w,NB_CL], dtype=np.float32)
-                t2 = process_hdu(src_im, results, sess)
-                if VERB: 
-                    speed2 = str(round((h*w)/(t2*1000000), 3))
-                    print(IM_PATH + " inference done in " + str(t2) + " s: " + speed2 + " MPix/s")
-            else:
-                # full zero image
-                results = np.zeros([h,w,NB_CL], dtype=np.float32)
-                if VERB: print(IM_PATH + " inference done (image is null, output is null)")
-                
-            if VERB: 
-                speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
-                print(IM_PATH + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
-
-            # writing
-            if PROBA_THRESH:
-                hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
-            else:
-                hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
-            fill_hdu_header(hdu)
-            tw = write_hdu(hdu, im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits")
-            if VERB: 
-                print(im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits written to disk in " + str(tw) + " s")
-                speedt = str(round((h*w)/((t1+t2+tw)*1000000), 3))
-                print("Total time: " + str(t1+t2+tw) + " s: " + speedt + " MPix/s")
-        else:
-            print("Error: requested hdu " + spec_hdu + " does not contain either 2D data or float data")
-            print("Exiting...")
-            sys.exit()
-    else:
-        timelog = []
-        # process all hdus containing data
-        with fits.open(im_path) as src_im_hdu:
-            nb_hdu = len(src_im_hdu)
-            hdu = fits.HDUList()
-            for k in range(nb_hdu):
-                src_im = src_im_hdu[k].data
-
-                if len(src_im_hdu[k].shape)==2 and type(src_im[0,0])==np.float32:
-                    h,w = src_im.shape
-                    
-                    if np.any(src_im):
-                        # dynamic compression
-                        t1 = dynamic_compression(src_im)
-                        if VERB: 
-                            speed1 = str(round((h*w)/(t1*1000000), 3))
-                            print("HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
-
-                        # inference
-                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
-                        t2 = process_hdu(src_im, results, sess)
-                        if VERB: 
-                            speed2 = str(round((h*w)/(t2*1000000), 3))
-                            print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done in " + str(t2) + " s: " + speed2 + " MPix/s")
-                            speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
-                        full_zero = False
-                        timelog.append(t1+t2)
-                    else:
-                        # full zero image
-                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
-                        if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done (image is null, output is null)")
-                        full_zero = True
-    
-                    if k==0:
-                        if PROBA_THRESH or full_zero:
-                            m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
-                        else:
-                            m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
-                        fill_hdu_header(m_hdu)
-                        hdu.append(m_hdu)
-                    else:
-                        if PROBA_THRESH or full_zero:
-                            sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
-                        else:
-                            sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)))
-                        fill_hdu_header(sub_hdu)
-                        hdu.append(sub_hdu)
-                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
-                else:
-                    # if this seems not to be data then copy the hdu
-                    hdu.append(src_im_hdu[k])
-                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done (just copied as it is not 2D float data)") 
-           
-            tw = write_hdu(hdu, im_path.split(".fits")[0] + ".masks.fits")
-            if VERB: 
-                print(im_path.split(".fits")[0] + ".masks.fits written to disk in " + str(tw) + " s")
-                if len(timelog):
-                    tt = sum(timelog) + tw
-                    speedt = str(round((h*w)*len(timelog)/(tt*1000000), 3))
-                    print("Total time: " + str(tt) + " s: " + speedt + " MPix/s")
-
-
-def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
@@ -385,7 +430,7 @@ def str2bool(v):
 
 
 def setup_params():
-    """
+    """ Read all parameters from command line and from parameter files
     """
 
     # parameter parser
@@ -398,8 +443,9 @@ def setup_params():
     parser.add_argument("--net_path", type=str, help='path to the neural network graphs and weights directory. Default is </abs_path_to_rep/model>', default=os.path.dirname(os.path.abspath(__file__)) + "/model")
     parser.add_argument("--prior_modif", type=str2bool, help='bool indicating if probability maps should be prior modified. Default is True', default=True)
     parser.add_argument("--proba_thresh", type=str2bool, help='bool indicating if probability maps should be thresholded. Default is True', default=True)
+    parser.add_argument("--single_mask", type=str2bool, help='bool indicating if resulting masks are joined in a single mask using powers of two', default=False)
     parser.add_argument("--batch_size", type=int, help='neural network batch size. Default is 8. You might want to use a lower value if you have RAM issues', default=8)
-    parser.add_argument("-v", "--verbose", help="increase output verbosity", action="store_true")
+    parser.add_argument("-v", "--verbose", help="activate output verbosity", action="store_true")
 
     # read arguments
     args = parser.parse_args()
@@ -409,6 +455,7 @@ def setup_params():
     global NET_PATH
     global PRIOR_MODIF
     global PROBA_THRESH
+    global SINGLE_MASK
     global BATCH_S
     global VERB
 
@@ -417,6 +464,11 @@ def setup_params():
     NET_PATH = args.net_path
     PRIOR_MODIF = args.prior_modif
     PROBA_THRESH = args.proba_thresh
+    SINGLE_MASK = args.single_mask
+    if SINGLE_MASK and not PROBA_THRESH:
+        print("Error: contradictory paramters: requesting a single mask but not requesting thresholding")
+        print("Exiting...")
+        sys.exit()
     BATCH_S = args.batch_size
     VERB = args.verbose
 
@@ -491,7 +543,9 @@ def setup_params():
     
     
 def main():
-    
+    """ Main function
+    """
+
     # setup all parameters
     setup_params()
 
@@ -550,6 +604,7 @@ if __name__=="__main__":
     NET_PATH = None
     PRIOR_MODIF = None
     PROBA_THRESH = None
+    SINGLE_MASK = None
     BATCH_S = None
     VERB = None
 
@@ -560,7 +615,7 @@ if __name__=="__main__":
     THRESH = np.array([0.61, 0.61, 0.61, 0.56, 0.59, 0.96, 0.91, 0.45, 0.83, 0.46, 0.92, 0.76, 0.53, 0.52])
 
     # other
-    #CLASS_ABBRV = ["CR", "HC", "BC", "BL", "HP", "BP", "P", "STL", "FR", "NEB", "SAT", "SP", "BBG", "BG"]
+    CLASS_ABBRV = ["CR", "HC", "BC", "BL", "HP", "BP", "P", "STL", "FR", "NEB", "SAT", "SP", "BBG", "BG"]
     CLASS_NAMES = ["CR: Cosmic Rays", "HC: Hot Columns", "BC: Bad Columns", "BL: Bad Lines", "HP: Hot Pixels", "BP: Bad Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "BBG: Bright BackGround", "BG: BackGround"]
     H_BACK = None
 

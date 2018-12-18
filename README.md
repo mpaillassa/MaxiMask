@@ -44,10 +44,10 @@ You should obtain a file named <test_im.masks.fits> that has the same content as
 ## General use
 Here is full description of MaxiMask. You can obtain it by running ```maximask -h```
 ```
-usage: maximask [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]  
-                [--proba_thresh PROBA_THRESH] [--batch_size BATCH_SIZE]  
-                [-v]  
-                im_path  
+usage: maximask [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]
+                [--proba_thresh PROBA_THRESH] [--single_mask SINGLE_MASK]
+                [--batch_size BATCH_SIZE] [-v]
+                im_path
 
 MaxiMask command line parameters:
 
@@ -64,28 +64,35 @@ optional arguments:
   --proba_thresh PROBA_THRESH
                         bool indicating if probability maps should be
                         thresholded. Default is True
+  --single_mask SINGLE_MASK
+                        bool indicating if resulting masks are joined in a
+                        single mask using powers of two
   --batch_size BATCH_SIZE
                         neural network batch size. Default is 8. You might
                         want to use a lower value if you have RAM issues
-  -v, --verbose         increase output verbosity
+  -v, --verbose         activate output verbosity
 ```
 
 The CNN outputs are probability maps for each class.  
 By default MaxiMask will prior adjust and threshold these probabilities with default parameters.
 
 ### Probability prior modification
-The prior modification aims to modify the MaxiMask output probabilities to match new priors, i.e new class proportions.  
+The prior modification aims to modify the MaxiMask output probabilities to match new priors, i.e new class proportions.
 When it is requested (default behaviour), MaxiMask will look for a file named _classes.priors_ containing the new priors.  
 If prior modification is requested and this file does not exist, it will use default priors indicated in the example file _classes.priors_, which also shows the required syntax.
 
 ### Probability thresholding
 The probability thresholding aims to threshold the MaxiMask output probabilities to obtain uint8 maps instead of float32 maps. One can use various thresholds to trade off true positive rate vs false positive rate.   
-When it is requested (default behaviour), MaxiMask will look for a file named _classes.thresh_ containing the thresholds.  
+When it is requested (default behaviour), MaxiMask will look for a file named _classes.thresh_ containing the thresholds.
 If probability thresholding is requested and this file does not exist, it will use default thresholds indicated in the example file _classes.thresh_, which also shows the required syntax.
+
+### Single mask
+If this option is required, MaxiMask will return only one mask by compiling each requested class using power of 2. Each class can be identified with its power of two. 
 
 ### Class selection
 Selecting some specific classes can be done using a file named _classes.flags_ where one can indicate which classes are requested with 0 and 1. Example of the required syntax is given is _classes.flags_.  
-MaxiMask will automatically look for _classes.flags_. If it does not exist, MaxiMask will output probability/binary maps for all classes.
+MaxiMask will automatically look for _classes.flags_. If it does not exist, MaxiMask will output probability maps/binary maps/single mask for all classes.  
+Depending on what is returned, the output fits header will be filled with corresponding informations.
 
 ### File syntax and class names 
 For more convenience when modifying _classes.flags_, _classes.priors_ or _classes.thresh_, the syntax choice has been to use two space separated columns:
@@ -96,20 +103,22 @@ This is the required syntax. If not respected while reading such a file, MaxiMas
 (Note that _classes.priors_ and _classes.thresh_ should contain one line per class even when not all classes are requested; lines of non requested classes will just be ignored).
 
 Abbreviated names stand for:
-* CR: cosmic rays 
-* HC: hot columns
-* BC: bad columns
-* BL: bad lines
-* HP: hot pixels
-* BP: bad pixels
-* P: persistence
-* STL: satellite trails
-* FR: fringe patterns
-* NEB: nebulosities
-* SAT: saturated pixels
-* SP: diffraction spikes
-* BBG: bright background
-* BG: background
+* CR: cosmic rays 1
+* HC: hot columns 2
+* BC: bad columns 4
+* BL: bad lines 8
+* HP: hot pixels 16
+* BP: bad pixels 32
+* P: persistence 64
+* STL: satellite trails 128
+* FR: fringe patterns 256
+* NEB: nebulosities 512
+* SAT: saturated pixels 1024
+* SP: diffraction spikes 2048
+* BBG: bright background 4096
+* BG: background 0
+
+Each power of two is the corresponding single mask code of the class.
 
 # LICENSE
 Copyright (c) 2018 Maxime Paillassa. 
