@@ -318,8 +318,8 @@ def process_hdu(src_im, results, sess):
             for tcl in range(1, TNB_CL-1):
                 if CLASSES[tcl]:
                     results[:,:,0] += pow2*results[:,:,cl]
-                    pow2 *= 2
                     cl += 1
+                pow2 *= 2
 
 def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
     """ Process one batch of subimage: get corresponding predictions depending on subimage position in the field
