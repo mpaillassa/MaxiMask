@@ -147,7 +147,7 @@ def process_file(sess, src_im_s):
                 sys.exit()
             src_im = src_im_hdu[int(spec_hdu)].data
 
-        if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0])==np.float32:
+        if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16]:
             h,w = src_im.shape
 
             if np.any(src_im):
@@ -187,7 +187,7 @@ def process_file(sess, src_im_s):
                 speedt = str(round((h*w)/((t1+t2+tw)*1000000), 3))
                 print("Total time: " + str(t1+t2+tw) + " s: " + speedt + " MPix/s")
         else:
-            print("Error: requested hdu " + spec_hdu + " does not contain either 2D data or float data")
+            print("Error: requested hdu " + spec_hdu + " does not contain 2D data or supported type")
             print("Exiting...")
             sys.exit()
     else:
@@ -199,7 +199,7 @@ def process_file(sess, src_im_s):
             for k in range(nb_hdu):
                 src_im = src_im_hdu[k].data
 
-                if len(src_im_hdu[k].shape)==2 and type(src_im[0,0])==np.float32:
+                if len(src_im_hdu[k].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16]:
                     h,w = src_im.shape
                     
                     if np.any(src_im):
@@ -248,7 +248,7 @@ def process_file(sess, src_im_s):
                 else:
                     # if this seems not to be data then copy the hdu
                     hdu.append(src_im_hdu[k])
-                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done (just copied as it is not 2D float data)") 
+                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done (just copied as it is not 2D data or supported type)") 
            
             tw = write_hdu(hdu, im_path.split(".fits")[0] + ".masks.fits")
             if VERB: 
