@@ -466,7 +466,7 @@ def setup_params():
     PROBA_THRESH = args.proba_thresh
     SINGLE_MASK = args.single_mask
     if SINGLE_MASK and not PROBA_THRESH:
-        print("Error: contradictory paramters: requesting a single mask but not requesting thresholding")
+        print("Error: contradictory parameters: requesting a single mask but not requesting thresholding")
         print("Exiting...")
         sys.exit()
     BATCH_S = args.batch_size
