@@ -164,15 +164,14 @@ def process_file(sess, src_im_s):
                 if VERB: 
                     speed2 = str(round((h*w)/(t2*1000000), 3))
                     print(IM_PATH + " inference done in " + str(t2) + " s: " + speed2 + " MPix/s")
+                    speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
+                    print(IM_PATH + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
             else:
                 # full zero image
                 results = np.zeros([h,w,NB_CL], dtype=np.float32)
+                full_zero = True
                 if VERB: print(IM_PATH + " inference done (image is null, output is null)")
                 
-            if VERB: 
-                speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
-                print(IM_PATH + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
-
             # writing
             if PROBA_THRESH:
                 if SINGLE_MASK:
@@ -184,9 +183,10 @@ def process_file(sess, src_im_s):
             fill_hdu_header(hdu)
             tw = write_hdu(hdu, im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits")
             if VERB: 
-                print(im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits written to disk in " + str(tw) + " s")
-                speedt = str(round((h*w)/((t1+t2+tw)*1000000), 3))
-                print("Total time: " + str(t1+t2+tw) + " s: " + speedt + " MPix/s")
+                if not full_zero:
+                    print(im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits written to disk in " + str(tw) + " s")
+                    speedt = str(round((h*w)/((t1+t2+tw)*1000000), 3))
+                    print("Total time: " + str(t1+t2+tw) + " s: " + speedt + " MPix/s")
         else:
             print("Error: requested hdu " + spec_hdu + " does not contain 2D data or supported type")
             print("Exiting...")
@@ -220,6 +220,7 @@ def process_file(sess, src_im_s):
                             speedhdu = str(round((h*w)/((t1+t2)*1000000), 3))
                         full_zero = False
                         timelog.append(t1+t2)
+                        if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
                     else:
                         # full zero image
                         results = np.zeros([h,w,NB_CL], dtype=np.float32)
@@ -246,7 +247,6 @@ def process_file(sess, src_im_s):
                             sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)))
                         fill_hdu_header(sub_hdu)
                         hdu.append(sub_hdu)
-                    if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
                 else:
                     # if this seems not to be data then copy the hdu
                     hdu.append(src_im_hdu[k])
