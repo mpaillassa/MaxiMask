@@ -102,7 +102,7 @@ def background_est(im):
 
     # interpolate across the blocks
     f = interp.RectBivariateSpline(np.arange(-mesh_size/2, (h_blocks+1)*mesh_size, mesh_size), np.arange(-mesh_size/2, (w_blocks+1)*mesh_size, mesh_size), to_interp2)
-    back_val = f(np.arange(h), np.arange(w))
+    back_val = f(np.arange(h), np.arange(w)).astype(np.float32)
 
     return back_val 
 
@@ -148,6 +148,7 @@ def process_file(sess, src_im_s):
             src_im = src_im_hdu[int(spec_hdu)].data
 
         if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16]:
+            src_im = src_im.astype(np.float32)
             h,w = src_im.shape
 
             if np.any(src_im):
@@ -200,6 +201,7 @@ def process_file(sess, src_im_s):
                 src_im = src_im_hdu[k].data
 
                 if len(src_im_hdu[k].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16]:
+                    src_im = src_im.astype(np.float32)
                     h,w = src_im.shape
                     
                     if np.any(src_im):
