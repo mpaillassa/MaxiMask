@@ -152,6 +152,7 @@ def process_file(sess, src_im_s):
             h,w = src_im.shape
 
             if np.any(src_im):
+                full_zero = False
                 # dynamic compression
                 t1 = dynamic_compression(src_im)
                 if VERB: 
