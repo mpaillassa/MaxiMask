@@ -147,7 +147,7 @@ def process_file(sess, src_im_s):
                 sys.exit()
             src_im = src_im_hdu[int(spec_hdu)].data
 
-        if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16]:
+        if len(src_im_hdu[int(spec_hdu)].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16, np.uint16]:
             src_im = src_im.astype(np.float32)
             h,w = src_im.shape
 
@@ -200,8 +200,8 @@ def process_file(sess, src_im_s):
             hdu = fits.HDUList()
             for k in range(nb_hdu):
                 src_im = src_im_hdu[k].data
-
-                if len(src_im_hdu[k].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16]:
+                
+                if len(src_im_hdu[k].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16, np.uint16]:
                     src_im = src_im.astype(np.float32)
                     h,w = src_im.shape
                     
