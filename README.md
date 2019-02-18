@@ -104,17 +104,17 @@ This is the required syntax. If not respected while reading such a file, MaxiMas
 
 Abbreviated names stand for:
 * CR: cosmic rays 1
-* HC: hot columns 2
-* BC: bad columns 4
-* BL: bad lines 8
-* HP: hot pixels 16
-* BP: bad pixels 32
-* P: persistence 64
-* STL: satellite trails 128
-* FR: fringe patterns 256
-* NEB: nebulosities 512
-* SAT: saturated pixels 1024
-* SP: diffraction spikes 2048
+* HCL: hot columns/lines 2
+* BCL: bad columns/lines/clusters 4
+* HP: hot pixels 8
+* BP: bad pixels 16
+* P: persistence 32
+* STL: satellite trails 64
+* FR: fringe patterns 128
+* NEB: nebulosities 256
+* SAT: saturated pixels 512
+* SP: diffraction spikes 1024
+* OV: overscanned pixels 2048
 * BBG: bright background 4096
 * BG: background 0
 

@@ -565,7 +565,7 @@ def main():
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
         nsaver = tf.train.import_meta_graph(NET_PATH + "/" + H_BACK + "_model.meta")
-        nsaver.restore(sess, NET_PATH + "/model")
+        nsaver.restore(sess, NET_PATH + "/model-150000")
         
         if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
             if IM_PATH[-5:]==".list":
@@ -599,7 +599,7 @@ if __name__=="__main__":
     IM2 = IM_SIZE//2
     IM4 = IM_SIZE//4
     TNB_CL = 14
-    TR_PRIORS = np.array([0.00224, 0.00803, 0.00796, 0.00800, 0.00035, 0.00035, 0.00911, 0.07027, 0.12188, 0.16426, 0.00161, 0.01409, 0.07717, 0.58629])
+    TR_PRIORS = np.array([0.00213, 0.00900, 0.03678, 0.00033, 0.00033, 0.00860, 0.09169, 0.11300, 0.15487, 0.00149, 0.01316, 0.05940, 0.07312, 0.52271])
 
     # parameter which values are read from command line
     IM_PATH = None
@@ -614,12 +614,12 @@ if __name__=="__main__":
     # default parameter values that can change depending on user specification 
     CLASSES = np.ones([TNB_CL], dtype=np.bool)
     NB_CL = np.sum(CLASSES)
-    PRIORS = np.array([0.0002, 0.0008, 0.0008, 0.0008, 0.000035, 0.000035, 0.00001, 0.001, 0.00001, 0.00001, 0.0016, 0.014, 0.07, 0.90])
+    PRIORS = np.array([0.0002, 0.0008, 0.0080, 0.000035, 0.000035, 0.00001, 0.001, 0.0001, 0.0001, 0.0016, 0.014, 0.005, 0.07, 0.90])
     THRESH = np.array([0.61, 0.61, 0.61, 0.56, 0.59, 0.96, 0.91, 0.45, 0.83, 0.46, 0.92, 0.76, 0.53, 0.52])
 
     # other
-    CLASS_ABBRV = ["CR", "HC", "BC", "BL", "HP", "BP", "P", "STL", "FR", "NEB", "SAT", "SP", "BBG", "BG"]
-    CLASS_NAMES = ["CR: Cosmic Rays", "HC: Hot Columns", "BC: Bad Columns", "BL: Bad Lines", "HP: Hot Pixels", "BP: Bad Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "BBG: Bright BackGround", "BG: BackGround"]
+    CLASS_ABBRV = ["CR", "HCL", "BCL", "HP", "BP", "P", "STL", "FR", "NEB", "SAT", "SP", "OV", "BBG", "BG"]
+    CLASS_NAMES = ["CR: Cosmic Rays", "HCL: Hot Columns/Lines", "BCL: Bad Columns/Lines/Clusters", "HP: Hot Pixels", "BP: Bad Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "OV: Overscan", "BBG: Bright BackGround", "BG: BackGround"]
     H_BACK = None
 
     main()
