@@ -151,6 +151,14 @@ def process_file(sess, src_im_s):
             src_im = src_im.astype(np.float32)
             h,w = src_im.shape
 
+            if PROBA_THRESH:
+                if SINGLE_MASK:
+                    results = np.zeros([1, h, w], dtype=np.uint16)
+                else:
+                    results = np.zeros([NB_CL, h, w], dtype=np.uint8)
+            else:
+                results = np.zeros([NB_CL, h, w], dtype=np.float32)
+
             if np.any(src_im):
                 full_zero = False
                 # dynamic compression
@@ -160,7 +168,6 @@ def process_file(sess, src_im_s):
                     print(IM_PATH + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
 
                 # inference
-                results = np.zeros([h,w,NB_CL], dtype=np.float32)
                 t2 = process_hdu(src_im, results, sess)
                 if VERB: 
                     speed2 = str(round((h*w)/(t2*1000000), 3))
@@ -169,18 +176,11 @@ def process_file(sess, src_im_s):
                     print(IM_PATH + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
             else:
                 # full zero image
-                results = np.zeros([h,w,NB_CL], dtype=np.float32)
                 full_zero = True
                 if VERB: print(IM_PATH + " inference done (image is null, output is null)")
                 
             # writing
-            if PROBA_THRESH:
-                if SINGLE_MASK:
-                    hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1))[0].astype(np.uint16))
-                else:
-                    hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
-            else:
-                hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
+            hdu = fits.PrimaryHDU(results)
             fill_hdu_header(hdu)
             tw = write_hdu(hdu, im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits")
             if VERB: 
@@ -200,10 +200,18 @@ def process_file(sess, src_im_s):
             hdu = fits.HDUList()
             for k in range(nb_hdu):
                 src_im = src_im_hdu[k].data
-                
+
                 if len(src_im_hdu[k].shape)==2 and type(src_im[0,0]) in [np.float32, np.float16, np.int32, np.int16, np.uint16]:
                     src_im = src_im.astype(np.float32)
                     h,w = src_im.shape
+
+                    if PROBA_THRESH:
+                        if SINGLE_MASK:
+                            results = np.zeros([1, h, w], dtype=np.uint16)
+                        else:
+                            results = np.zeros([NB_CL, h, w], dtype=np.uint8)
+                    else:
+                        results = np.zeros([NB_CL, h, w], dtype=np.float32)
                     
                     if np.any(src_im):
                         # dynamic compression
@@ -213,7 +221,6 @@ def process_file(sess, src_im_s):
                             print("HDU " + str(k) + "/" + str(nb_hdu-1) + " dynamic compression done in " + str(t1) + " s: " + speed1 + " MPix/s")
 
                         # inference
-                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
                         t2 = process_hdu(src_im, results, sess)
                         if VERB: 
                             speed2 = str(round((h*w)/(t2*1000000), 3))
@@ -224,28 +231,15 @@ def process_file(sess, src_im_s):
                         if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " done in " + str(t1+t2) + " s: " + speedhdu + " MPix/s")
                     else:
                         # full zero image
-                        results = np.zeros([h,w,NB_CL], dtype=np.float32)
                         if VERB: print("HDU " + str(k) + "/" + str(nb_hdu-1) + " inference done (image is null, output is null)")
                         full_zero = True
     
                     if k==0:
-                        if PROBA_THRESH or full_zero:
-                            if SINGLE_MASK:
-                                m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1))[0].astype(np.uint16))
-                            else:
-                                m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
-                        else:
-                            m_hdu = fits.PrimaryHDU(np.transpose(results, (2,0,1)))
+                        m_hdu = fits.PrimaryHDU(results)
                         fill_hdu_header(m_hdu)
                         hdu.append(m_hdu)
                     else:
-                        if PROBA_THRESH or full_zero:
-                            if SINGLE_MASK:
-                                sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1))[0].astype(np.uint16))
-                            else:
-                                sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)).astype(np.uint8))
-                        else:
-                            sub_hdu = fits.ImageHDU(np.transpose(results, (2,0,1)))
+                        sub_hdu = fits.ImageHDU(results)
                         fill_hdu_header(sub_hdu)
                         hdu.append(sub_hdu)
                 else:
@@ -302,27 +296,6 @@ def process_hdu(src_im, results, sess):
         if re:
             process_batch(src_im, results, sess, re, tot_l, (nb_step-1)*BATCH_S, len(tot_l))
 
-    if PRIOR_MODIF:
-        cl = 0
-        for tcl in range(TNB_CL):
-            if CLASSES[tcl]:
-                prior_factor = (TR_PRIORS[tcl]*(1-PRIORS[tcl]))/((1-TR_PRIORS[tcl])*PRIORS[tcl])
-                results[:,:,cl] = results[:,:,cl]/(results[:,:,cl] + prior_factor*(1-results[:,:,cl]))
-                cl += 1
-                
-    if PROBA_THRESH:
-        thresholds = THRESH[CLASSES]
-        results[(results > thresholds)] = 1
-        results[(results <= thresholds)] = 0
-
-        if SINGLE_MASK:
-            cl = 1
-            pow2 = 2
-            for tcl in range(1, TNB_CL-1):
-                if CLASSES[tcl]:
-                    results[:,:,0] += pow2*results[:,:,cl]
-                    cl += 1
-                pow2 *= 2
 
 def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
     """ Process one batch of subimage: get corresponding predictions depending on subimage position in the field
@@ -331,35 +304,44 @@ def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
     h,w = src_im.shape
 
     inp = np.zeros([batch_s, IM_SIZE, IM_SIZE], dtype=np.float32)
-    tmp_results = np.zeros([batch_s, IM_SIZE, IM_SIZE, NB_CL], dtype=np.float32)
 
     # prepare inputs and make inference
     k = 0
     for coord in tot_l[first_p:last_p]:
         inp[k] = src_im[coord[1]:coord[1]+IM_SIZE, coord[0]:coord[0]+IM_SIZE]
         k += 1
-    tmp_results = sess.run("predictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1])})[:,:,:,CLASSES]
+        
+    if PRIOR_MODIF and not PROBA_THRESH:
+        tmp_results = sess.run("ppredictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1]), "flags:0": CLASSES, "priors:0": PRIOR_F})
+    elif not PRIOR_MODIF and PROBA_THRESH and not SINGLE_MASK:
+        tmp_results = sess.run("tpredictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1]), "flags:0": CLASSES, "priors:0": PRIOR_F, "thresh:0": THRESH})
+    elif PRIOR_MODIF and PROBA_THRESH and not SINGLE_MASK:
+        tmp_results = sess.run("tpredictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1]), "flags:0": CLASSES, "priors:0": PRIOR_F, "thresh:0": THRESH})
+    elif not PRIOR_MODIF and not PROBA_THRESH:
+        tmp_results = sess.run("fpredictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1]), "flags:0": CLASSES})
+    elif SINGLE_MASK:
+        tmp_results = sess.run("spredictions:0", {"rinputs:0": np.reshape(inp, [batch_s, IM_SIZE, IM_SIZE, 1]), "flags:0": CLASSES, "priors:0": PRIOR_F, "thresh:0": THRESH, "2powers:0": POWERS})
 
     # copy in final mask
     k = 0
     for x,y in tot_l[first_p:last_p]:
-        results[IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
+        results[:, IM4+y:y+IM_SIZE-IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][:, IM4:IM_SIZE-IM4, IM4:IM_SIZE-IM4]
         if x==0:
-            results[IM4+y:y+IM_SIZE-IM4, x:x+IM4] = tmp_results[k][IM4:IM_SIZE-IM4, :IM4]
+            results[:, IM4+y:y+IM_SIZE-IM4, x:x+IM4] = tmp_results[k][:, IM4:IM_SIZE-IM4, :IM4]
         if y==0:
-            results[y:y+IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][:IM4, IM4:IM_SIZE-IM4]
+            results[:, y:y+IM4, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][:, :IM4, IM4:IM_SIZE-IM4]
         if x==w-IM_SIZE:
-            results[IM4+y:y+IM_SIZE-IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM4:IM_SIZE-IM4, IM_SIZE-IM4:IM_SIZE]
+            results[:, IM4+y:y+IM_SIZE-IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:, IM4:IM_SIZE-IM4, IM_SIZE-IM4:IM_SIZE]
         if y==h-IM_SIZE:
-            results[y+IM_SIZE-IM4:y+IM_SIZE, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM4:IM_SIZE-IM4]
+            results[:, y+IM_SIZE-IM4:y+IM_SIZE, IM4+x:x+IM_SIZE-IM4] = tmp_results[k][:, IM_SIZE-IM4:IM_SIZE, IM4:IM_SIZE-IM4]
         if x==0 and y==0:
-            results[y:y+IM4, x:x+IM4] = tmp_results[k][:IM4, :IM4]
+            results[:, y:y+IM4, x:x+IM4] = tmp_results[k][:, :IM4, :IM4]
         if x==0 and y==h-IM_SIZE:
-            results[y+IM_SIZE-IM4:y+IM_SIZE, x:x+IM4] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, :IM4]
+            results[:, y+IM_SIZE-IM4:y+IM_SIZE, x:x+IM4] = tmp_results[k][:, IM_SIZE-IM4:IM_SIZE, :IM4]
         if x==w-IM_SIZE and y==0:
-            results[y:y+IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:IM4, IM_SIZE-IM4:IM_SIZE]
+            results[:, y:y+IM4, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:, :IM4, IM_SIZE-IM4:IM_SIZE]
         if x==w-IM_SIZE and y==h-IM_SIZE:
-            results[y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
+            results[:, y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:, IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
         k += 1
 
 
@@ -382,41 +364,33 @@ def fill_hdu_header(hdu):
         hdu.header['THRESH'] = "No probability thresholding"
 
     if PRIOR_MODIF or PROBA_THRESH:
-        cl = 1
-        pow2 = 1
-        for tcl in range(TNB_CL):
-            if CLASSES[tcl]:
-                if SINGLE_MASK:
-                    if tcl==TNB_CL-1:
-                        hdu.header[CLASS_ABBRV[tcl]] = 0
-                    else:
-                        hdu.header[CLASS_ABBRV[tcl]] = pow2
-                    hdu.header.comments[CLASS_ABBRV[tcl]] = CLASS_NAMES[tcl] + " mask value"
+        for cl in range(NB_CL):
+            if SINGLE_MASK:
+                hdu.header[CLASS_ABBRV[cl]] = POWERS[cl]
+                hdu.header.comments[CLASS_ABBRV[cl]] = CLASS_NAMES[cl] + " mask value"
 
-                    if PRIOR_MODIF:
-                        hdu.header[CLASS_ABBRV[tcl] + '_PR'] = str(round(PRIORS[tcl], 6))
-                        hdu.header.comments[CLASS_ABBRV[tcl] + '_PR'] = CLASS_NAMES[tcl] + " class prior"
+                if PRIOR_MODIF:
+                    hdu.header[CLASS_ABBRV[cl] + '_PR'] = str(round(PRIORS[cl], 6))
+                    hdu.header.comments[CLASS_ABBRV[cl] + '_PR'] = CLASS_NAMES[cl] + " class prior"
                     
-                    hdu.header[CLASS_ABBRV[tcl] + '_TH'] = str(round(THRESH[tcl], 3))
-                    hdu.header.comments[CLASS_ABBRV[tcl] + '_TH'] = CLASS_NAMES[tcl] + " class threshold"
-                else:
-                    hdu.header['M' + str(cl)] = CLASS_NAMES[tcl]
-                    hdu.header.comments['M' + str(cl)] = "Mask " + str(cl) + " class name"
-                    if PRIOR_MODIF:
-                        hdu.header['M' + str(cl) + '_PR'] = str(round(PRIORS[tcl], 6))
-                        hdu.header.comments['M' + str(cl) + '_PR'] = "Mask " + str(cl) + " class prior"
-                    if PROBA_THRESH:
-                        hdu.header['M' + str(cl) + '_TH'] = str(round(THRESH[tcl], 3))
-                        hdu.header.comments['M' + str(cl) + '_TH'] = "Mask " + str(cl) + " class threshold"
-                pow2 *= 2
-                cl += 1
+                hdu.header[CLASS_ABBRV[cl] + '_TH'] = str(round(THRESH[cl], 3))
+                hdu.header.comments[CLASS_ABBRV[cl] + '_TH'] = CLASS_NAMES[cl] + " class threshold"
+            else:
+                hdu.header['M' + str(cl)] = CLASS_NAMES[cl]
+                hdu.header.comments['M' + str(cl)] = "Mask " + str(cl) + " class name"
+                if PRIOR_MODIF:
+                    hdu.header['M' + str(cl) + '_PR'] = str(round(PRIORS[cl], 6))
+                    hdu.header.comments['M' + str(cl) + '_PR'] = "Mask " + str(cl) + " class prior"
+                if PROBA_THRESH:
+                    hdu.header['M' + str(cl) + '_TH'] = str(round(THRESH[cl], 3))
+                    hdu.header.comments['M' + str(cl) + '_TH'] = "Mask " + str(cl) + " class threshold"
 
 
 @timeit
 def write_hdu(hdu, name):
     """ Write a fits image to disk (separated in a function just to be decorated)
     """
-    
+   
     hdu.writeto(name, overwrite=True)
 
 
@@ -439,7 +413,7 @@ def setup_params():
     # parameter parser
     parser = argparse.ArgumentParser(description='MaxiMask command line parameters:')
 
-    # necessary parameters
+    # positional parameter
     parser.add_argument("im_path", type=str, help='path the image(s) to be processed')
 
     # optional parameters
@@ -450,7 +424,7 @@ def setup_params():
     parser.add_argument("--batch_size", type=int, help='neural network batch size. Default is 8. You might want to use a lower value if you have RAM issues', default=8)
     parser.add_argument("-v", "--verbose", help="activate output verbosity", action="store_true")
 
-    # read arguments
+    # read arguments with parser
     args = parser.parse_args()
 
     global IM_PATH
@@ -477,9 +451,12 @@ def setup_params():
 
     # read classes.flags
     global CLASSES
+    global NB_CL
+    global TR_PRIORS
     try:
         with open("classes.flags") as fd:
             lines = fd.readlines()
+            CLASSES = []
             if len(lines)!=TNB_CL:
                 print("Error: classes.flags must contain " + str(TNB_CL) + " lines, one for each class")
                 print("Exiting...")
@@ -487,64 +464,97 @@ def setup_params():
             for k in range(TNB_CL):
                 try:
                     if int(lines[k].split()[1]):
-                        CLASSES[k] = True
-                    else:
-                        CLASSES[k] = False
+                        CLASSES.append(k)
                 except (ValueError, IndexError) as e:
                     print("Error: classes.flags file exists but may not be well formatted (at least one class does not have a proper boolean flag)")
                     print("Exiting...")
                     sys.exit()
-            global NB_CL
-            NB_CL = np.sum(CLASSES)
+        NB_CL = len(CLASSES)
+        tmp = np.zeros([NB_CL], dtype=np.float32)
+        for k in range(NB_CL):
+            tmp[k] = TR_PRIORS[CLASSES[k]]
+        TR_PRIORS = tmp
     except IOError:
         if VERB:
             print("No classes.flags found: MaxiMask will output probabilities/masks for all classes")
     
     # if prior modif is requested read classes.priors
+    global PRIORS
+    global PRIOR_F
     if PRIOR_MODIF:
-        global PRIORS
         try:
             with open("classes.priors") as fd:
                 lines = fd.readlines()
+                PRIORS = np.zeros([NB_CL], dtype=np.float32)
                 if len(lines)!=TNB_CL:
                     print("Error: classes.priors must contain " + str(TNB_CL) + " lines, one for each class")
                     print("Exiting...")
                     sys.exit()
-                for k in range(TNB_CL):
-                    if CLASSES[k]:
-                        try:
-                            PRIORS[k] = float(lines[k].split()[1])
-                        except (ValueError, IndexError) as e:
-                            print("Error: classes.priors file exists but may not be well formatted (at least one requested class does not have a proper prior)")
-                            print("Exiting...")
-                            sys.exit()
+                for k in range(NB_CL):
+                    try:
+                        PRIORS[k] = float(lines[CLASSES[k]].split()[1])
+                    except (ValueError, IndexError) as e:
+                        print("Error: classes.priors file exists but may not be well formatted (at least one requested class does not have a proper prior)")
+                        print("Exiting...")
+                        sys.exit()
+            PRIOR_F = (TR_PRIORS/(1-TR_PRIORS))*((1-PRIORS)/PRIORS)
         except IOError:
+            tmp = np.zeros([NB_CL], dtype=np.float32)
+            for k in range(NB_CL):
+                tmp[k] = PRIORS[CLASSES[k]]
+            PRIORS = tmp
+            PRIOR_F = (TR_PRIORS/(1-TR_PRIORS))*((1-PRIORS)/PRIORS)
             if VERB:
                 print("No classes.priors file found whereas prior modification is requested: using default priors")
     
     # if probability thresholding is requested read classes.thresh
+    global THRESH
     if PROBA_THRESH:
-        global THRESH
         try:
             with open("classes.thresh") as fd:
                 lines = fd.readlines()
+                THRESH = np.zeros([NB_CL], dtype=np.float32)
                 if len(lines)!=TNB_CL:
                     print("Error: classes.thresh must contain " + str(TNB_CL) + " lines, one for each class")
                     print("Exiting...")
                     sys.exit()
-                for k in range(TNB_CL):
-                    if CLASSES[k]:
-                        try:
-                            THRESH[k] = float(lines[k].split()[1])
-                        except (ValueError, IndexError) as e:
-                            print("Error: classes.thresh file exists but may not be well formatted (at least one requested class does not have a proper threshold)")
-                            print("Exiting...")
-                            sys.exit()
+                for k in range(NB_CL):
+                    try:
+                        THRESH[k] = float(lines[CLASSES[k]].split()[1])
+                    except (ValueError, IndexError) as e:
+                        print("Error: classes.thresh file exists but may not be well formatted (at least one requested class does not have a proper threshold)")
+                        print("Exiting...")
+                        sys.exit()
+            if not PRIOR_MODIF:
+                PRIOR_F = np.ones_like(CLASSES, dtype=np.float32)
         except IOError:
+            tmp = np.zeros([NB_CL], dtype=np.float32)
+            for k in range(NB_CL):
+                tmp[k] = THRESH[CLASSES[k]]
+            THRESH = tmp
             if VERB:
                 print("No classes.thresh file found whereas probability thresholding is requested: using default thresholds")
     
-    
+    global POWERS
+    if SINGLE_MASK:
+        tmp = np.zeros([NB_CL], dtype=np.uint16)
+        for k in range(NB_CL):
+            tmp[k] = POWERS[CLASSES[k]]
+        POWERS = tmp
+        
+    global CLASS_ABBRV
+    tmp = []
+    for k in range(NB_CL):
+        tmp.append(CLASS_ABBRV[CLASSES[k]])
+    CLASS_ABBRV = tmp
+
+    global CLASS_NAMES
+    tmp = []
+    for k in range(NB_CL):
+        tmp.append(CLASS_NAMES[CLASSES[k]])
+    CLASS_NAMES = tmp
+                
+ 
 def main():
     """ Main function
     """
@@ -566,7 +576,7 @@ def main():
     with tf.Session(config=config) as sess:
         nsaver = tf.train.import_meta_graph(NET_PATH + "/" + H_BACK + "_model.meta")
         nsaver.restore(sess, NET_PATH + "/model-150000")
-        
+
         if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
             if IM_PATH[-5:]==".list":
                 # process all images of list file
@@ -599,11 +609,12 @@ if __name__=="__main__":
     IM2 = IM_SIZE//2
     IM4 = IM_SIZE//4
     TNB_CL = 14
-    TR_PRIORS = np.array([0.00213, 0.00900, 0.03678, 0.00033, 0.00033, 0.00860, 0.09169, 0.11300, 0.15487, 0.00149, 0.01316, 0.05940, 0.07312, 0.52271])
+    TR_PRIORS = np.array([0.00212, 0.00900, 0.03678, 0.00033, 0.00033, 0.00860, 0.09170, 0.11298, 0.15486, 0.00149, 0.01316, 0.05940, 0.07312, 0.52271], dtype=np.float32)
 
-    # parameter which values are read from command line
+    # positional command line argument
     IM_PATH = None
 
+    # optional command line arguments
     NET_PATH = None
     PRIOR_MODIF = None
     PROBA_THRESH = None
@@ -611,15 +622,22 @@ if __name__=="__main__":
     BATCH_S = None
     VERB = None
 
-    # default parameter values that can change depending on user specification 
-    CLASSES = np.ones([TNB_CL], dtype=np.bool)
-    NB_CL = np.sum(CLASSES)
-    PRIORS = np.array([0.0002, 0.0008, 0.0080, 0.000035, 0.000035, 0.00001, 0.001, 0.0001, 0.0001, 0.0016, 0.014, 0.005, 0.07, 0.90])
-    THRESH = np.array([0.61, 0.61, 0.61, 0.56, 0.59, 0.96, 0.91, 0.45, 0.83, 0.46, 0.92, 0.76, 0.53, 0.52])
+    # default parameter values that can change depending on user specification (parameter files)
+    CLASSES = np.arange(0, TNB_CL, dtype=np.int32)
+    NB_CL = TNB_CL
+    PRIORS = np.array([0.0002, 0.0008, 0.0080, 0.000035, 0.000035, 0.00001, 0.001, 0.0001, 0.0001, 0.0016, 0.013, 0.005, 0.07, 0.90], dtype=np.float32)
+    PRIOR_F = (TR_PRIORS/(1-TR_PRIORS))*((1-PRIORS)/PRIORS)
+    THRESH = np.array([0.52, 0.80, 0.82, 0.73, 0.98, 0.75, 0.70, 0.70, 0.59, 0.92, 0.57, 0.33, 0.70, 0.50], dtype=np.float32)
+
+    tmp = np.arange(0, TNB_CL, dtype=np.uint16)
+    tmp2 = 2*np.ones_like(tmp, dtype=np.uint16)
+    tmp2[-1] = 0
+    POWERS = np.power(tmp2, tmp)
 
     # other
     CLASS_ABBRV = ["CR", "HCL", "BCL", "HP", "BP", "P", "STL", "FR", "NEB", "SAT", "SP", "OV", "BBG", "BG"]
     CLASS_NAMES = ["CR: Cosmic Rays", "HCL: Hot Columns/Lines", "BCL: Bad Columns/Lines/Clusters", "HP: Hot Pixels", "BP: Bad Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "OV: Overscan", "BBG: Bright BackGround", "BG: BackGround"]
+
     H_BACK = None
 
     main()
