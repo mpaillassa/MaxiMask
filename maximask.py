@@ -54,29 +54,32 @@ def background_est(im):
         y_b, y_e = y_l[b], min(y_l[b]+mesh_size, h)
 
         mesh = im[y_b:y_e, x_b:x_e]
-            
-        tmp_mask = np.ones_like(mesh)
-        idx = np.where(tmp_mask)
-        init_std = np.std(mesh[idx[0], idx[1]])
-        tmp_std = init_std
-        tmp_med = np.median(mesh[idx[0], idx[1]])
-        k = 3.0
-        while True:
-            to_keep = np.logical_and(tmp_mask*(mesh >= tmp_med-k*tmp_std), tmp_mask*(mesh <= tmp_med+k*tmp_std))
-            to_keep = np.logical_and(to_keep, np.logical_not(mesh<=0))
-            if np.all(to_keep)==np.all(tmp_mask):
-                break
-            else:
-                tmp_mask *= to_keep
-                idx = np.where(tmp_mask)
-                tmp_std = np.std(mesh[idx[0], idx[1]])
-                tmp_med = np.median(mesh[idx[0], idx[1]])
-        idx = np.where(tmp_mask)
-        if tmp_std > init_std - 0.01*init_std or tmp_std < init_std + 0.01*init_std:
-            b_v = np.mean(mesh[idx[0], idx[1]])
+        
+        if np.all(mesh==0):
+            z[b] = 0
         else:
-            b_v = 2.5*np.median(mesh[idx[0], idx[1]]) - 1.5*np.mean(mesh[idx[0], idx[1]])
-        z[b] = b_v
+            tmp_mask = np.ones_like(mesh)
+            idx = np.where(tmp_mask)
+            init_std = np.std(mesh[idx[0], idx[1]])
+            tmp_std = init_std
+            tmp_med = np.median(mesh[idx[0], idx[1]])
+            k = 3.0
+            while True:
+                to_keep = np.logical_and(tmp_mask*(mesh >= tmp_med-k*tmp_std), tmp_mask*(mesh <= tmp_med+k*tmp_std))
+                to_keep = np.logical_and(to_keep, np.logical_not(mesh<=0))
+                if np.all(to_keep)==np.all(tmp_mask):
+                    break
+                else:
+                    tmp_mask *= to_keep
+                    idx = np.where(tmp_mask)
+                    tmp_std = np.std(mesh[idx[0], idx[1]])
+                    tmp_med = np.median(mesh[idx[0], idx[1]])
+            idx = np.where(tmp_mask)
+            if tmp_std > init_std - 0.01*init_std or tmp_std < init_std + 0.01*init_std:
+                b_v = np.mean(mesh[idx[0], idx[1]])
+            else:
+                b_v = 2.5*np.median(mesh[idx[0], idx[1]]) - 1.5*np.mean(mesh[idx[0], idx[1]])
+            z[b] = b_v
 
     # build the little mesh to median filter and to interpolate
     to_interp = np.zeros([h_blocks, w_blocks])
@@ -114,9 +117,12 @@ def dynamic_compression(im):
 
     # just a check to remove eventual nan values
     np.place(im, im==np.isnan, 0)
+    np.place(im, im>80000, 80000)
 
     # dynamic compression
     bg_map = background_est(im)
+    np.place(bg_map, np.isnan(bg_map), 0)
+
     im -= bg_map
     sig = np.std(im)
     im /= sig
