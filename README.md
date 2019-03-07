@@ -103,24 +103,45 @@ For more convenience when modifying _classes.flags_, _classes.priors_ or _classe
 1. the abbreviated class names.
 2. the values of interest.
 
+That is something like this:
+```
+CR  <flag|prior|threshold>
+HCL <flag|prior|threshold>
+DCL <flag|prior|threshold>
+HP  <flag|prior|threshold>
+DP  <flag|prior|threshold>
+P   <flag|prior|threshold>
+STL <flag|prior|threshold>
+FR  <flag|prior|threshold>
+NEB <flag|prior|threshold>
+SAT <flag|prior|threshold>
+SP  <flag|prior|threshold>
+OV  <flag|prior|threshold>
+BBG <flag|prior|threshold>
+BG  <flag|prior|threshold>
+```
+
 This is the required syntax. If not respected while reading such a file, MaxiMask will exit with an appropriate error message.  
 (Note that _classes.priors_ and _classes.thresh_ should contain one line per class even when not all classes are requested; lines of non requested classes will just be ignored).
 
 Abbreviated names stand for:
-* CR: cosmic rays 1
-* HCL: hot columns/lines 2
-* BCL: bad columns/lines/clusters 4
-* HP: hot pixels 8
-* BP: bad pixels 16
-* P: persistence 32
-* STL: satellite trails 64
-* FR: fringe patterns 128
-* NEB: nebulosities 256
-* SAT: saturated pixels 512
-* SP: diffraction spikes 1024
-* OV: overscanned pixels 2048
-* BBG: bright background 4096
-* BG: background 0
+
+| Abbreviated name | Full name | Binary Code |
+| --- | --- | --- |
+| CR | Cosmic Rays | 1 |
+| HCL | Hot Columns/Lines | 2 |
+| DCL | Dead Columns/Lines/Clusters | 4 |
+| HP | Hot Pixels | 8 |
+| DP | Dead Pixels | 16 |
+| P | Persistence | 32 |
+| STL | SaTeLlite trails | 64 |
+| FR | FRinge patterns | 128 |
+| NEB | NEBulosities | 256 |
+| SAT | SATurated pixels | 512 |
+| SP | diffraction SPikes | 1024 |
+| OV | OVerscanned pixels | 2048 |
+| BBG | Bright BackGround pixel | 4096 |
+| BG | Background | 0 |
 
 Each power of two is the corresponding single mask code of the class.
 
