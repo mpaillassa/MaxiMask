@@ -641,8 +641,8 @@ if __name__=="__main__":
     POWERS = np.power(tmp2, tmp)
 
     # other
-    CLASS_ABBRV = ["CR", "HCL", "BCL", "HP", "BP", "P", "STL", "FR", "NEB", "SAT", "SP", "OV", "BBG", "BG"]
-    CLASS_NAMES = ["CR: Cosmic Rays", "HCL: Hot Columns/Lines", "BCL: Bad Columns/Lines/Clusters", "HP: Hot Pixels", "BP: Bad Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "OV: Overscan", "BBG: Bright BackGround", "BG: BackGround"]
+    CLASS_ABBRV = ["CR", "HCL", "DCL", "HP", "DP", "P", "STL", "FR", "NEB", "SAT", "SP", "OV", "BBG", "BG"]
+    CLASS_NAMES = ["CR: Cosmic Rays", "HCL: Hot Columns/Lines", "DCL: Dead Columns/Lines/Clusters", "HP: Hot Pixels", "DP: Dead Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "OV: Overscan", "BBG: Bright BackGround", "BG: BackGround"]
 
     H_BACK = None
 
