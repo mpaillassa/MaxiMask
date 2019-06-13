@@ -145,6 +145,10 @@ Abbreviated names stand for:
 
 Each power of two is the corresponding single mask code of the class.
 
+# MaxiTrack
+
+TODO
+
 # LICENSE
 Copyright (c) 2018 Maxime Paillassa. 
 
