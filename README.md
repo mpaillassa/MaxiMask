@@ -2,7 +2,7 @@
 MaxiMask is a convolutional neural network (CNN) that detects contaminants in astronomical images.
 
 <p align="center">
-  <img src="logo.png" width="400">
+  <img src="logo.png" width="300">
 </p>
 
 # Dependencies
@@ -46,7 +46,7 @@ maximask test_im.fits.fz
 You should obtain a file named <test_im.masks.fits> that has the same content as <test_out.fits.fz>.
 
 ## General use
-Here is full description of MaxiMask. You can obtain it by running ```maximask -h```
+Here is full description of MaxiMask. It can be obtained by running ```maximask -h```
 ```
 usage: maximask [-h] [--net_path NET_PATH] [--prior_modif PRIOR_MODIF]
                 [--proba_thresh PROBA_THRESH] [--single_mask SINGLE_MASK]
@@ -147,7 +147,57 @@ Each power of two is the corresponding single mask code of the class.
 
 # MaxiTrack
 
-TODO
+MaxiTrack behaves just like MaxiMask: it can process images using the same formats (specific HDU, specific image, directory or list file):
+```
+./maxitrack.py <im_path>
+```
+You may use the same procedure than MaxiMask to use it from anywhere in your machine.
+
+## Minimal example
+If you run:
+```
+maxitrack test_im.fits.fz
+```
+You should obtain a file named <maxitrack.out> containing the line:
+```
+test_im.fits.fz 0.019503068732568823
+```
+The number corresponding to the image name is the probability that this image is affected by tracking error.
+When running again, MaxiTrack will always append the new results to this file <maxitrack.out>. 
+
+## General use
+Here is full description of MaxiMask. It can be obtained by running ```maxitrack -h```
+```
+usage: maxitrack.py [-h] [--net_path NET_PATH] [--prior_value PRIOR_VALUE]
+                    [--frac FRAC] [--batch_size BATCH_SIZE] [-v]
+                    im_path
+
+MaxiTrack command line parameters:
+
+positional arguments:
+  im_path               path the image(s) to be processed
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --net_path NET_PATH   path to the neural network graphs and weights
+                        directory. Default is </abs_path_to_rep/model>
+  --prior_value PRIOR_VALUE
+                        float defining the expected prior in data. Default is
+                        0.05
+  --frac FRAC           int defining the number of HDU to use. Default is -1,
+                        meaning that MaxiTrack will use all HDU
+  --batch_size BATCH_SIZE
+                        neural network batch size. Default is 8. You might
+                        want to use a lower value if you have RAM issues
+  -v, --verbose         activate output verbosity
+```
+
+### Probability prior modification
+As in MaxiMask, priors can be specified to adjust the output probabilities to new expected class proportions. As there are only two classes in MaxiTrack (tracking or not tracking), only one prior corresponding to the expected proportion of images affected by tracking errors has to be speficied. Default is 0.05, i.e 5% of images affected by tracking errors.
+
+### Fraction option
+When giving a FITS file containing N HDUs, MaxiTrack will by default use the N HDUs to compute the output probability for the whole field. In order to run MaxiTrack faster, you can specify a number FRAC<N of HDUs to use to compute the output probability.
+
 
 # LICENSE
 Copyright (c) 2018 Maxime Paillassa. 
