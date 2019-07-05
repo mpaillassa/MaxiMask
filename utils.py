@@ -57,7 +57,7 @@ def background_est(im):
             while True:
                 to_keep = np.logical_and(tmp_mask*(mesh >= tmp_med-k*tmp_std), tmp_mask*(mesh <= tmp_med+k*tmp_std))
                 to_keep = np.logical_and(to_keep, np.logical_not(mesh<=0))
-                if np.all(to_keep)==np.all(tmp_mask):
+                if np.all(to_keep==tmp_mask):
                     break
                 else:
                     tmp_mask *= to_keep

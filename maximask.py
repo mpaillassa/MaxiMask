@@ -504,7 +504,7 @@ if __name__=="__main__":
     IM2 = IM_SIZE//2
     IM4 = IM_SIZE//4
     TNB_CL = 14
-    TR_PRIORS = np.array([0.00212, 0.00900, 0.03678, 0.00033, 0.00033, 0.00860, 0.09170, 0.11298, 0.15486, 0.00149, 0.01316, 0.05940, 0.07312, 0.52271], dtype=np.float32)
+    TR_PRIORS = np.array([0.0125, 0.0108, 0.0396, 0.0010, 0.0011, 0.0213, 0.0971, 0.2660, 0.1668, 0.0067, 0.0402, 0.0300, 0.1191, 0.3505], dtype=np.float32)
 
     # positional command line argument
     IM_PATH = None
@@ -520,9 +520,9 @@ if __name__=="__main__":
     # default parameter values that can change depending on user specification (parameter files)
     CLASSES = np.arange(0, TNB_CL, dtype=np.int32)
     NB_CL = TNB_CL
-    PRIORS = np.array([0.0002, 0.0008, 0.0080, 0.000035, 0.000035, 0.00001, 0.001, 0.0001, 0.0001, 0.0016, 0.013, 0.005, 0.07, 0.90], dtype=np.float32)
+    PRIORS = np.array([0.0002, 0.0008, 0.0080, 0.000001, 0.000001, 0.00001, 0.001, 0.01, 0.01, 0.0016, 0.013, 0.005, 0.07, 0.90], dtype=np.float32)
     PRIOR_F = (TR_PRIORS/(1-TR_PRIORS))*((1-PRIORS)/PRIORS)
-    THRESH = np.array([0.52, 0.80, 0.82, 0.73, 0.98, 0.75, 0.70, 0.70, 0.59, 0.92, 0.57, 0.33, 0.70, 0.50], dtype=np.float32)
+    THRESH = np.array([0.33, 0.57, 0.78, 0.31, 0.94, 0.81, 0.60, 0.88, 0.37, 0.85, 0.39, 0.78, 0.50, 0.27], dtype=np.float32)
 
     tmp = np.arange(0, TNB_CL, dtype=np.uint16)
     tmp2 = 2*np.ones_like(tmp, dtype=np.uint16)
