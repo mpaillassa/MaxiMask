@@ -160,7 +160,7 @@ maxitrack test_im.fits.fz
 ```
 You should obtain a file named <maxitrack.out> containing the line:
 ```
-test_im.fits.fz 0.019503068732568823
+test_im.fits.fz 9.356169982957375e-09
 ```
 The number corresponding to the image name is the probability that this image is affected by tracking error.
 When running again, MaxiTrack will always append the new results to this file <maxitrack.out>. 
