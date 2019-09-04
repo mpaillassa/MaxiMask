@@ -13,7 +13,7 @@ Submitter paper in A&A is available on arXiv: https://arxiv.org/abs/1907.08298
 * Python 2 or 3
 * Scipy >=1.0.1
 * Astropy >=2.0.7
-* tensorflow or tensorflow-gpu >=1.9 (CPU is expected to be much slower than GPU)
+* tensorflow or tensorflow-gpu >=1.14 (CPU is expected to be much slower than GPU)
 
 (Older versions may work but it has not been tested)
 # Usage
