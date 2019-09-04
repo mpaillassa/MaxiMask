@@ -469,7 +469,7 @@ def main():
         
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
-        nsaver = tf.train.import_meta_graph(NET_PATH + "/" + H_BACK + "_model.meta")
+        nsaver = tf.train.import_meta_graph(NET_PATH + "/model.meta")
         nsaver.restore(sess, NET_PATH + "/model-150000")
 
         if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
