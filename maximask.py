@@ -469,7 +469,7 @@ def main():
         
     # open tf session first so all is done in one single session
     with tf.Session(config=config) as sess:
-        nsaver = tf.train.import_meta_graph(NET_PATH + "/model.meta")
+        nsaver = tf.train.import_meta_graph(NET_PATH + "/model-150000.meta")
         nsaver.restore(sess, NET_PATH + "/model-150000")
 
         if os.path.isfile(IM_PATH) or IM_PATH[-1]=="]":
@@ -504,7 +504,7 @@ if __name__=="__main__":
     IM2 = IM_SIZE//2
     IM4 = IM_SIZE//4
     TNB_CL = 14
-    TR_PRIORS = np.array([0.0148, 0.0114, 0.0387, 0.0011, 0.0014, 0.0171, 0.0652, 0.1774, 0.1823, 0.0026, 0.0408, 0.0308, 0.1425, 0.4265], dtype=np.float32)
+    TR_PRIORS = np.array([0.0154, 0.0102, 0.0376, 0.0009, 0.0013, 0.0143, 0.0693, 0.1776, 0.1921, 0.0024, 0.0352, 0.0290, 0.1016, 0.4343], dtype=np.float32)
 
     # positional command line argument
     IM_PATH = None
@@ -520,9 +520,9 @@ if __name__=="__main__":
     # default parameter values that can change depending on user specification (parameter files)
     CLASSES = np.arange(0, TNB_CL, dtype=np.int32)
     NB_CL = TNB_CL
-    PRIORS = np.array([0.0002, 0.0008, 0.0080, 0.000001, 0.000001, 0.00001, 0.001, 0.01, 0.01, 0.0016, 0.013, 0.005, 0.07, 0.90], dtype=np.float32)
+    PRIORS = np.array([0.0007, 0.0008, 0.0080, 0.000001, 0.000001, 0.00001, 0.006, 0.01, 0.01, 0.0016, 0.013, 0.005, 0.07, 0.90], dtype=np.float32)
     PRIOR_F = (TR_PRIORS/(1-TR_PRIORS))*((1-PRIORS)/PRIORS)
-    THRESH = np.array([0.49, 0.66, 0.71, 0.34, 0.98, 0.85, 0.56, 0.55, 0.38, 0.69, 0.50, 0.69, 0.65, 0.32], dtype=np.float32)
+    THRESH = np.array([0.51, 0.52, 0.50, 0.23, 0.99, 0.66, 0.55, 0.62, 0.45, 0.78, 0.41, 0.37, 0.49, 0.33], dtype=np.float32)
 
     tmp = np.arange(0, TNB_CL, dtype=np.uint16)
     tmp2 = 2*np.ones_like(tmp, dtype=np.uint16)
@@ -530,8 +530,8 @@ if __name__=="__main__":
     POWERS = np.power(tmp2, tmp)
 
     # other
-    CLASS_ABBRV = ["CR", "HCL", "DCL", "HP", "DP", "P", "STL", "FR", "NEB", "SAT", "SP", "OV", "BBG", "BG"]
-    CLASS_NAMES = ["CR: Cosmic Rays", "HCL: Hot Columns/Lines", "DCL: Dead Columns/Lines/Clusters", "HP: Hot Pixels", "DP: Dead Pixels", "P: Persistence", "STL: SaTeLlite trails", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "OV: Overscan", "BBG: Bright BackGround", "BG: BackGround"]
+    CLASS_ABBRV = ["CR", "HCL", "DCL", "HP", "DP", "P", "TRL", "FR", "NEB", "SAT", "SP", "OV", "BBG", "BG"]
+    CLASS_NAMES = ["CR: Cosmic Rays", "HCL: Hot Columns/Lines", "DCL: Dead Columns/Lines/Clusters", "HP: Hot Pixels", "DP: Dead Pixels", "P: Persistence", "TRL: TRaiLs", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "OV: Overscan", "BBG: Bright BackGround", "BG: BackGround"]
 
     H_BACK = None
 

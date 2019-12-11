@@ -138,7 +138,7 @@ Abbreviated names stand for:
 | HP | Hot Pixels | 8 |
 | DP | Dead Pixels | 16 |
 | P | Persistence | 32 |
-| STL | SaTeLlite trails | 64 |
+| TRL | TRaiLs | 64 |
 | FR | FRinge patterns | 128 |
 | NEB | NEBulosities | 256 |
 | SAT | SATurated pixels | 512 |
