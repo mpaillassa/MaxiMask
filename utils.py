@@ -65,10 +65,7 @@ def background_est(im):
                     tmp_std = np.std(mesh[idx[0], idx[1]])
                     tmp_med = np.median(mesh[idx[0], idx[1]])
             idx = np.where(tmp_mask)
-            if tmp_std > init_std - 0.01*init_std or tmp_std < init_std + 0.01*init_std:
-                b_v = np.mean(mesh[idx[0], idx[1]])
-            else:
-                b_v = 2.5*np.median(mesh[idx[0], idx[1]]) - 1.5*np.mean(mesh[idx[0], idx[1]])
+            b_v = np.mean(mesh[idx[0], idx[1]])
             z[b] = b_v
 
     # build the little mesh to median filter and to interpolate
@@ -106,7 +103,7 @@ def dynamic_compression(im):
     """
 
     # just a check to remove eventual nan values
-    np.place(im, im==np.isnan, 0)
+    np.place(im, np.isnan(im), 0)
     np.place(im, im>80000, 80000)
 
     # dynamic compression
