@@ -75,7 +75,7 @@ def process_file(sess, src_im_s):
                 if VERB: print(IM_PATH + " inference done (image is null, output is null)")
                 
             # writing
-            hdu = fits.PrimaryHDU(results)
+            hdu = fits.PrimaryHDU(np.squeeze(results))
             fill_hdu_header(hdu)
             tw = write_hdu(hdu, im_path[:-n].split(".fits")[0] + ".masks" + spec_hdu + ".fits")
             if VERB: 
@@ -130,11 +130,11 @@ def process_file(sess, src_im_s):
                         full_zero = True
     
                     if k==0:
-                        m_hdu = fits.PrimaryHDU(results)
+                        m_hdu = fits.PrimaryHDU(np.squeeze(results))
                         fill_hdu_header(m_hdu)
                         hdu.append(m_hdu)
                     else:
-                        sub_hdu = fits.ImageHDU(results)
+                        sub_hdu = fits.ImageHDU(np.squeeze(results))
                         fill_hdu_header(sub_hdu)
                         hdu.append(sub_hdu)
                 else:
@@ -238,6 +238,9 @@ def process_batch(src_im, results, sess, batch_s, tot_l, first_p, last_p):
         if x==w-IM_SIZE and y==h-IM_SIZE:
             results[:, y+IM_SIZE-IM4:y+IM_SIZE, x+IM_SIZE-IM4:x+IM_SIZE] = tmp_results[k][:, IM_SIZE-IM4:IM_SIZE, IM_SIZE-IM4:IM_SIZE]
         k += 1
+        
+    if SINGLE_MASK:
+        results = np.squeeze(results)
 
 
 def fill_hdu_header(hdu):
@@ -266,19 +269,19 @@ def fill_hdu_header(hdu):
 
                 if PRIOR_MODIF:
                     hdu.header[CLASS_ABBRV[cl] + '_PR'] = str(round(PRIORS[cl], 6))
-                    hdu.header.comments[CLASS_ABBRV[cl] + '_PR'] = CLASS_NAMES[cl] + " class prior"
+                    hdu.header.comments[CLASS_ABBRV[cl] + '_PR'] = CLASS_NAMES[cl] + " prior"
                     
                 hdu.header[CLASS_ABBRV[cl] + '_TH'] = str(round(THRESH[cl], 3))
-                hdu.header.comments[CLASS_ABBRV[cl] + '_TH'] = CLASS_NAMES[cl] + " class threshold"
+                hdu.header.comments[CLASS_ABBRV[cl] + '_TH'] = CLASS_NAMES[cl] + " threshold"
             else:
                 hdu.header['M' + str(cl)] = CLASS_NAMES[cl]
                 hdu.header.comments['M' + str(cl)] = "Mask " + str(cl) + " class name"
                 if PRIOR_MODIF:
                     hdu.header['M' + str(cl) + '_PR'] = str(round(PRIORS[cl], 6))
-                    hdu.header.comments['M' + str(cl) + '_PR'] = "Mask " + str(cl) + " class prior"
+                    hdu.header.comments['M' + str(cl) + '_PR'] = "Mask " + str(cl) + " prior"
                 if PROBA_THRESH:
                     hdu.header['M' + str(cl) + '_TH'] = str(round(THRESH[cl], 3))
-                    hdu.header.comments['M' + str(cl) + '_TH'] = "Mask " + str(cl) + " class threshold"
+                    hdu.header.comments['M' + str(cl) + '_TH'] = "Mask " + str(cl) + " threshold"
 
 
 @utils.timeit
