@@ -3,7 +3,9 @@
 # MaxiMask
 MaxiMask is a convolutional neural network (CNN) that detects contaminants in astronomical images.
 
-Submitter paper in A&A is available on arXiv: https://arxiv.org/abs/1907.08298
+Published paper in A&A: https://doi.org/10.1051/0004-6361/201936345 
+
+Available on arXiv: https://arxiv.org/abs/1907.08298
 
 <p align="center">
   <img src="logo.png" width="300">
