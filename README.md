@@ -12,7 +12,7 @@ Available on arXiv: https://arxiv.org/abs/1907.08298
   <img src="starlink1.gif" width="600">
 </p>
 
-MaxiMask identifying the Starlink satellites in the famous DECam image.
+Contaminants that MaxiMask can identify include trails, as shown in the image above where MaxiMask can detect the Starlink satellites in the famous DECam image.
 
 # Dependencies
 * Python 2 or 3
