@@ -8,7 +8,7 @@ Published paper in A&A: https://doi.org/10.1051/0004-6361/201936345
 
 Available on arXiv: https://arxiv.org/abs/1907.08298
 
-Contaminants that MaxiMask can identify include (but is not limited to) trails, as shown in the image below where MaxiMask can detect the Starlink satellites in the famous DECam image.
+Contaminants that MaxiMask can identify include (but are not limited to) trails, as shown in the image below where MaxiMask can detect the Starlink satellites in the famous DECam image.
 
 <p align="center">
   <img src="starlink1.gif" width="600">
