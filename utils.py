@@ -39,6 +39,7 @@ def background_est(im):
     # process the blocks
     nb_blocks = len(x_l)
     z = [None]*nb_blocks
+    zs = [None]*nb_blocks
     for b in range(nb_blocks):
         x_b, x_e = x_l[b], min(x_l[b]+mesh_size, w)
         y_b, y_e = y_l[b], min(y_l[b]+mesh_size, h)
@@ -67,6 +68,7 @@ def background_est(im):
             idx = np.where(tmp_mask)
             b_v = np.mean(mesh[idx[0], idx[1]])
             z[b] = b_v
+            zs[b] = np.std(mesh[idx[0], idx[1]])
 
     # build the little mesh to median filter and to interpolate
     to_interp = np.zeros([h_blocks, w_blocks])
@@ -94,7 +96,35 @@ def background_est(im):
     f = interp.RectBivariateSpline(np.arange(-mesh_size/2, (h_blocks+1)*mesh_size, mesh_size), np.arange(-mesh_size/2, (w_blocks+1)*mesh_size, mesh_size), to_interp2)
     back_val = f(np.arange(h), np.arange(w)).astype(np.float32)
 
-    return back_val 
+    ## for sigma
+
+    # build the little mesh to median filter and to interpolate
+    to_interp = np.zeros([h_blocks, w_blocks])
+    for b in range(nb_blocks):
+        to_interp[int(y_l[b]/mesh_size), int(x_l[b]/mesh_size)] = zs[b]
+        
+    to_interp2 = np.zeros([h_blocks+2, w_blocks+2])
+    to_interp2[1:-1, 1:-1] = to_interp
+
+    to_interp2[0,1:-1] = to_interp[0,:]
+    to_interp2[1:-1,0] = to_interp[:,0]
+    to_interp2[-1,1:-1] = to_interp[-1,:]
+    to_interp2[1:-1,-1] = to_interp[:,-1]
+
+    # median filter
+    to_interp2 = sign.medfilt(to_interp2, 3)
+    
+    # replace the 0 in the corners to avoid corner artefacts
+    to_interp2[0,0] = to_interp2[1,1]
+    to_interp2[0,-1] = to_interp2[1,-2]
+    to_interp2[-1,0] = to_interp2[-2,1]
+    to_interp2[-1,-1] = to_interp2[-2,-2]
+
+    # interpolate across the blocks
+    f = interp.RectBivariateSpline(np.arange(-mesh_size/2, (h_blocks+1)*mesh_size, mesh_size), np.arange(-mesh_size/2, (w_blocks+1)*mesh_size, mesh_size), to_interp2)
+    sig_map = f(np.arange(h), np.arange(w)).astype(np.float32)
+
+    return back_val, sig_map
 
 
 @timeit
@@ -107,9 +137,8 @@ def dynamic_compression(im):
     np.place(im, im>80000, 80000)
 
     # dynamic compression
-    bg_map = background_est(im)
+    bg_map, si_map = background_est(im)
     np.place(bg_map, np.isnan(bg_map), 0)
 
     im -= bg_map
-    sig = np.std(im)
-    im /= sig
+    im /= si_map
