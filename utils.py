@@ -45,9 +45,9 @@ def background_est(im):
         y_b, y_e = y_l[b], min(y_l[b]+mesh_size, h)
 
         mesh = im[y_b:y_e, x_b:x_e]
-        
         if np.all(mesh==0):
             z[b] = 0
+            zs[b] = 1
         else:
             tmp_mask = np.ones_like(mesh)
             idx = np.where(tmp_mask)
@@ -55,6 +55,7 @@ def background_est(im):
             tmp_std = init_std
             tmp_med = np.median(mesh[idx[0], idx[1]])
             k = 3.0
+            reg_break = True
             while True:
                 to_keep = np.logical_and(tmp_mask*(mesh >= tmp_med-k*tmp_std), tmp_mask*(mesh <= tmp_med+k*tmp_std))
                 to_keep = np.logical_and(to_keep, np.logical_not(mesh<=0))
@@ -63,12 +64,20 @@ def background_est(im):
                 else:
                     tmp_mask *= to_keep
                     idx = np.where(tmp_mask)
-                    tmp_std = np.std(mesh[idx[0], idx[1]])
-                    tmp_med = np.median(mesh[idx[0], idx[1]])
-            idx = np.where(tmp_mask)
-            b_v = np.mean(mesh[idx[0], idx[1]])
-            z[b] = b_v
-            zs[b] = np.std(mesh[idx[0], idx[1]])
+                    remaining = mesh[idx[0], idx[1]]
+                    if remaining.shape[0]:
+                        tmp_std = np.std(remaining)
+                        tmp_med = np.median(remaining)
+                    else:
+                        reg_break = False
+                        break
+            if reg_break:
+                idx = np.where(tmp_mask)
+                z[b] = np.mean(mesh[idx[0], idx[1]])
+                zs[b] = np.std(mesh[idx[0], idx[1]])
+            else:
+                z[b] = 0
+                zs[b] = 1
 
     # build the little mesh to median filter and to interpolate
     to_interp = np.zeros([h_blocks, w_blocks])
