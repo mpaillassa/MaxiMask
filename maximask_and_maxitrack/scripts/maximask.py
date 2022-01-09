@@ -347,7 +347,7 @@ def main():
     parser = argparse.ArgumentParser(description='MaxiMask command line parameters:')
 
     # positional parameter
-    parser.add_argument("im_path", type=str, help='path the image(s) to be processed')
+    parser.add_argument("im_path", type=str, help='path to the image(s) to be processed')
 
     # optional parameters
     script_dir = os.path.dirname(os.path.abspath(__file__))

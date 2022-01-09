@@ -225,13 +225,13 @@ def main():
     parser = argparse.ArgumentParser(description='MaxiTrack command line parameters:')
 
     # positional parameter
-    parser.add_argument("im_path", type=str, help='path the image(s) to be processed')
+    parser.add_argument("im_path", type=str, help='path to the image(s) to be processed')
 
     # optional parameters
     default_file_dir = os.path.dirname(os.path.abspath(__file__))
     default_net_dir = os.path.join(os.path.dirname(default_file_dir), "data/tensorflow_models/maxitrack")
     parser.add_argument("--net_dir", type=str, help='neural network graphs and weights directory. Default is </abs_path_to_script/../tensorflow_models/maxitrack>', default=default_net_dir)
-    parser.add_argument("--prior", type=float, help='prior value to use. Default is 0.5', default=0.5)
+    parser.add_argument("--prior", type=float, help='prior value to use. Default is 0.05', default=0.05)
     parser.add_argument("--frac", type=float, help='value specifying a fraction of all the HDUs to use to speed up processing. Default is 1', default=1)
     parser.add_argument("--batch_size", type=int, help='neural network batch size. Default is 16. You might want to use a lower value if you have RAM issues', default=16)
     parser.add_argument("-v", "--verbose", help="activate output verbosity", action="store_true")
