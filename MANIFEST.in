@@ -1,0 +1,4 @@
+graft maximask_and_maxitrack/data
+include README.md
+include LICENSE
+include requirements.txt
