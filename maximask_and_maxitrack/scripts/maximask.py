@@ -21,14 +21,64 @@ class MaxiMask_inference(object):
 
     nb_classes = 14
     im_size = 400
-    im2 = im_size//2
-    im4 = im_size//4
-    tr_priors = np.array([0.010, 0.009, 0.036, 0.001, 0.001, 0.010, 0.103, 0.126, 0.171, 0.002, 0.044, 0.118, 0.126, 0.395], dtype=np.float32)
-    class_names = ["CR: Cosmic Rays", "HCL: Hot Columns/Lines", "DCL: Dead Columns/Lines/Clusters", "HP: Hot Pixels", "DP: Dead Pixels", "P: Persistence", "TRL: TRaiLs", "FR: residual FRinging", "NEB: NEBulosities", "SAT: SATurated pixels", "SP: diffraction SPikes", "OV: Overscan", "BBG: Bright BackGround", "BG: BackGround"]
-    class_abbr = ["CR", "HCL", "DCL", "HP", "DP", "P", "TRL", "FR", "NEB", "SAT", "SP", "OV", "BBG", "BG"]
-    
-    def __init__(self, im_path, net_dir, class_flags, priors, thresholds, sing_mask, batch_size):
-        """ Initializes the MaxiMask_inference object.
+    im2 = im_size // 2
+    im4 = im_size // 4
+    tr_priors = np.array(
+        [
+            0.010,
+            0.009,
+            0.036,
+            0.001,
+            0.001,
+            0.010,
+            0.103,
+            0.126,
+            0.171,
+            0.002,
+            0.044,
+            0.118,
+            0.126,
+            0.395,
+        ],
+        dtype=np.float32,
+    )
+    class_names = [
+        "CR: Cosmic Rays",
+        "HCL: Hot Columns/Lines",
+        "DCL: Dead Columns/Lines/Clusters",
+        "HP: Hot Pixels",
+        "DP: Dead Pixels",
+        "P: Persistence",
+        "TRL: TRaiLs",
+        "FR: residual FRinging",
+        "NEB: NEBulosities",
+        "SAT: SATurated pixels",
+        "SP: diffraction SPikes",
+        "OV: Overscan",
+        "BBG: Bright BackGround",
+        "BG: BackGround",
+    ]
+    class_abbr = [
+        "CR",
+        "HCL",
+        "DCL",
+        "HP",
+        "DP",
+        "P",
+        "TRL",
+        "FR",
+        "NEB",
+        "SAT",
+        "SP",
+        "OV",
+        "BBG",
+        "BG",
+    ]
+
+    def __init__(
+        self, im_path, net_dir, class_flags, priors, thresholds, sing_mask, batch_size
+    ):
+        """Initializes the MaxiMask_inference object.
         Args:
             im_path (string): path to the images to be processed. This can be a fits file, a directory or a list file.
             net_dir (string): path to the MaxiMask neural network directory.
@@ -41,7 +91,7 @@ class MaxiMask_inference(object):
 
         self.im_path = im_path
         self.net_dir = net_dir
-        
+
         # builds the class indexes of the requested classes
         self.class_flags = class_flags
         class_idx = []
@@ -49,11 +99,14 @@ class MaxiMask_inference(object):
             if self.class_flags[k]:
                 class_idx.append(k)
         self.class_idx = np.array(class_idx, dtype=np.int32)
-        
+
         # builds the prior factor values to be given for inference
         self.priors = priors
         if self.priors is not None:
-            self.prior_factors = (self.tr_priors[self.class_flags]/(1-self.tr_priors[self.class_flags]))*((1-self.priors[self.class_flags])/self.priors[self.class_flags])
+            self.prior_factors = (
+                self.tr_priors[self.class_flags]
+                / (1 - self.tr_priors[self.class_flags])
+            ) * ((1 - self.priors[self.class_flags]) / self.priors[self.class_flags])
         else:
             self.prior_factors = np.zeros([self.nb_classes], dtype=np.float32)
 
@@ -67,19 +120,19 @@ class MaxiMask_inference(object):
         # builds the binary mask values to be given for inference
         self.sing_mask = sing_mask
         if sing_mask:
-            self.bin_powers = np.power(2*np.ones([self.nb_classes]), np.arange(self.nb_classes))[self.class_flags].astype(np.float32)
+            self.bin_powers = np.power(
+                2 * np.ones([self.nb_classes]), np.arange(self.nb_classes)
+            )[self.class_flags].astype(np.float32)
             self.bin_powers[-1] = 0
         else:
             self.bin_powers = np.zeros([self.nb_classes], dtype=np.float32)
-            
-        self.batch_size = batch_size
 
+        self.batch_size = batch_size
 
     @utils.timeit
     def process_all(self):
-        """ Process all the images
-        """
-        
+        """Process all the images"""
+
         # get list of files to process
         file_list = utils.get_file_list(self.im_path)
         log.info(f"List of files to process: {file_list}")
@@ -89,10 +142,11 @@ class MaxiMask_inference(object):
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             log.info("##### Beginning of possible Tensorflow logs")
             import tensorflow as tf
+
             tf_model = tf.saved_model.load(self.net_dir)
             log.info("##### End of Tensorflow logs")
             log.info(f"Using TensorFlow version {tf.__version__}")
-            
+
             # process each file of file list
             for file_name in file_list:
                 log.info(f"Starting {file_name}")
@@ -101,16 +155,14 @@ class MaxiMask_inference(object):
         else:
             log.error(f"No file to process given input path <{self.im_path}>")
 
-    
     def process_file(self, file_name, tf_model):
-        """ Process the given fits file
-        """
-        
+        """Process the given fits file"""
+
         final_file_hdu = fits.HDUList()
-        
+
         # make hdu tasks
         hdu_task_list = self.make_hdu_tasks(file_name)
-        
+
         # process each hdu
         for hdu_idx, task, hdu_type, hdu_shape in hdu_task_list:
             log.info(f"HDU {hdu_idx}: {task}")
@@ -118,16 +170,18 @@ class MaxiMask_inference(object):
             # get raw predictions
             hdu_preds, t = self.process_hdu(file_name, hdu_idx, task, tf_model)
             if hdu_shape is not None:
-                log.info(f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s")
+                log.info(
+                    f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s"
+                )
 
             # append the HDU
-            if hdu_type=="PrimaryHDU":
+            if hdu_type == "PrimaryHDU":
                 hdu = fits.PrimaryHDU(hdu_preds)
-            elif hdu_type=="ImageHDU" or hdu_type=="CompImageHDU":
+            elif hdu_type == "ImageHDU" or hdu_type == "CompImageHDU":
                 hdu = fits.ImageHDU(hdu_preds)
             self.fill_header(hdu)
             final_file_hdu.append(hdu)
-        
+
         # write file
         out_file_name = file_name
         if ".fz" in out_file_name:
@@ -136,16 +190,18 @@ class MaxiMask_inference(object):
             out_file_name = out_file_name.replace(".gz", "")
         if "[" in out_file_name:
             spec_hdu_idx = int(file_name.split("[")[1].split("]")[0])
-            out_file_name = out_file_name.split("[")[0].replace(".fits", f".mask{spec_hdu_idx}.fits")
+            out_file_name = out_file_name.split("[")[0].replace(
+                ".fits", f".mask{spec_hdu_idx}.fits"
+            )
             final_file_hdu.writeto(out_file_name, overwrite=True)
         else:
-            final_file_hdu.writeto(out_file_name.replace(".fits", ".mask.fits"), overwrite=True)
+            final_file_hdu.writeto(
+                out_file_name.replace(".fits", ".mask.fits"), overwrite=True
+            )
 
-            
     def make_hdu_tasks(self, file_name):
-        """ Make the hdu task list for the given file_name
-        """
-        
+        """Make the hdu task list for the given file_name"""
+
         hdu_task_list = []
 
         _, im_path_ext = os.path.splitext(file_name)
@@ -173,11 +229,9 @@ class MaxiMask_inference(object):
 
         return hdu_task_list
 
-
     @utils.timeit
     def process_hdu(self, file_name, hdu_idx, task, tf_model):
-        """ Process the hdu according to the task
-        """
+        """Process the hdu according to the task"""
 
         # make file name
         _, im_path_ext = os.path.splitext(file_name)
@@ -189,13 +243,13 @@ class MaxiMask_inference(object):
             hdu = file_hdu[hdu_idx]
             hdu_data = hdu.data
 
-        if task=="copy":
+        if task == "copy":
             return hdu_data
-        elif task=="process":
+        elif task == "process":
 
             # prediction array
             h, w = hdu_data.shape
-            if np.all(hdu_data==0):
+            if np.all(hdu_data == 0):
                 return np.zeros_like(hdu_data, dtype=np.uint8)
             else:
                 if self.sing_mask:
@@ -204,14 +258,14 @@ class MaxiMask_inference(object):
                     preds = np.zeros([h, w, np.sum(self.class_flags)], dtype=np.uint8)
                 else:
                     preds = np.zeros([h, w, np.sum(self.class_flags)], dtype=np.float32)
-                        
+
                 # get list of block coordinate to process
                 block_coord_list = self.get_block_coords(h, w)
-                
+
                 # preprocessing
                 hdu_data, t = utils.image_norm(hdu_data)
                 log.info(f"Preprocessing time: {t:.2f}s, {h*w/(t*1e06):.2f}MPix/s")
-                
+
                 # process all the blocks by batches
                 # the process_batch method writes the predictions in preds by reference
                 nb_blocks = len(block_coord_list)
@@ -220,92 +274,131 @@ class MaxiMask_inference(object):
                     self.process_batch(hdu_data, preds, tf_model, block_coord_list)
                 else:
                     # several batches to process + one last possibly not full
-                    nb_batch = nb_blocks//self.batch_size
+                    nb_batch = nb_blocks // self.batch_size
                     for b in range(nb_batch):
-                        batch_coord_list = block_coord_list[b*self.batch_size:(b+1)*self.batch_size]
+                        batch_coord_list = block_coord_list[
+                            b * self.batch_size : (b + 1) * self.batch_size
+                        ]
                         self.process_batch(hdu_data, preds, tf_model, batch_coord_list)
-                    rest = nb_blocks - nb_batch*self.batch_size
+                    rest = nb_blocks - nb_batch * self.batch_size
                     if rest:
                         batch_coord_list = block_coord_list[-rest:]
-                        self.process_batch(hdu_data, preds, tf_model, batch_coord_list) 
+                        self.process_batch(hdu_data, preds, tf_model, batch_coord_list)
 
                 if self.sing_mask:
                     return preds
                 else:
                     return np.transpose(preds, (2, 0, 1))
-                
 
     def get_block_coords(self, h, w):
-        """ Get the coordinate list of blocks to process
-        """
-        
+        """Get the coordinate list of blocks to process"""
+
         coord_list = []
 
-        for y in range(0, h-self.im_size+1, self.im2):
-            for x in range(0, w-self.im_size+1, self.im2):
+        for y in range(0, h - self.im_size + 1, self.im2):
+            for x in range(0, w - self.im_size + 1, self.im2):
                 coord_list.append([x, y])
-        if h%self.im_size:
-            for x in range(0, w-self.im_size+1, self.im2):
-                coord_list.append([x, h-self.im_size])
-        if w%self.im_size:
-            for y in range(0, h-self.im_size+1, self.im2):
-                coord_list.append([w-self.im_size, y])
-        if w%self.im_size and h%self.im_size: 
-            coord_list.append([w-self.im_size, h-self.im_size])
+        if h % self.im_size:
+            for x in range(0, w - self.im_size + 1, self.im2):
+                coord_list.append([x, h - self.im_size])
+        if w % self.im_size:
+            for y in range(0, h - self.im_size + 1, self.im2):
+                coord_list.append([w - self.im_size, y])
+        if w % self.im_size and h % self.im_size:
+            coord_list.append([w - self.im_size, h - self.im_size])
 
         return coord_list
 
-
     def process_batch(self, im_data, out_array, tf_model, batch_coord_list):
-        """ Process a batch of inputs
-        """
-        
+        """Process a batch of inputs"""
+
         # prepare input data batch
         h, w = im_data.shape
-        inp = np.zeros([len(batch_coord_list), self.im_size, self.im_size], dtype=np.float32)
+        inp = np.zeros(
+            [len(batch_coord_list), self.im_size, self.im_size], dtype=np.float32
+        )
         b = 0
         for x, y in batch_coord_list:
-            inp[b] = im_data[y:y+self.im_size, x:x+self.im_size]
+            inp[b] = im_data[y : y + self.im_size, x : x + self.im_size]
             b += 1
         inp = np.expand_dims(inp, axis=3)
 
         # make predictions
-        res = tf_model([inp, self.class_idx, self.prior_factors, self.thresh_inf, self.bin_powers], False)
+        res = tf_model(
+            [inp, self.class_idx, self.prior_factors, self.thresh_inf, self.bin_powers],
+            False,
+        )
 
         # fill output array
         b = 0
         for x, y in batch_coord_list:
             # centered predictions
-            out_array[self.im4+y:y+self.im_size-self.im4, self.im4+x:x+self.im_size-self.im4] = res[b, self.im4:self.im_size-self.im4, self.im4:self.im_size-self.im4]
+            out_array[
+                self.im4 + y : y + self.im_size - self.im4,
+                self.im4 + x : x + self.im_size - self.im4,
+            ] = res[
+                b,
+                self.im4 : self.im_size - self.im4,
+                self.im4 : self.im_size - self.im4,
+            ]
             # ides if we are on the side of the CCD
-            if x==0:
-                out_array[self.im4+y:y+self.im_size-self.im4, x:x+self.im4] = res[b, self.im4:self.im_size-self.im4, :self.im4]
-            if y==0:
-                out_array[y:y+self.im4, self.im4+x:x+self.im_size-self.im4] = res[b, :self.im4, self.im4:self.im_size-self.im4]
-            if x==w-self.im_size:
-                out_array[self.im4+y:y+self.im_size-self.im4, x+self.im_size-self.im4:x+self.im_size] = res[b, self.im4:self.im_size-self.im4, self.im_size-self.im4:self.im_size]
-            if y==h-self.im_size:
-                out_array[y+self.im_size-self.im4:y+self.im_size, self.im4+x:x+self.im_size-self.im4] = res[b, self.im_size-self.im4:self.im_size, self.im4:self.im_size-self.im4]
-            if x==0 and y==0:
-                out_array[y:y+self.im4, x:x+self.im4] = res[b, :self.im4, :self.im4]
-            if x==0 and y==h-self.im_size:
-                out_array[y+self.im_size-self.im4:y+self.im_size, x:x+self.im4] = res[b, self.im_size-self.im4:self.im_size, :self.im4]
-            if x==w-self.im_size and y==0:
-                out_array[y:y+self.im4, x+self.im_size-self.im4:x+self.im_size] = res[b, :self.im4, self.im_size-self.im4:self.im_size]
-            if x==w-self.im_size and y==h-self.im_size:
-                out_array[y+self.im_size-self.im4:y+self.im_size, x+self.im_size-self.im4:x+self.im_size] = res[b, self.im_size-self.im4:self.im_size, self.im_size-self.im4:self.im_size]
+            if x == 0:
+                out_array[
+                    self.im4 + y : y + self.im_size - self.im4, x : x + self.im4
+                ] = res[b, self.im4 : self.im_size - self.im4, : self.im4]
+            if y == 0:
+                out_array[
+                    y : y + self.im4, self.im4 + x : x + self.im_size - self.im4
+                ] = res[b, : self.im4, self.im4 : self.im_size - self.im4]
+            if x == w - self.im_size:
+                out_array[
+                    self.im4 + y : y + self.im_size - self.im4,
+                    x + self.im_size - self.im4 : x + self.im_size,
+                ] = res[
+                    b,
+                    self.im4 : self.im_size - self.im4,
+                    self.im_size - self.im4 : self.im_size,
+                ]
+            if y == h - self.im_size:
+                out_array[
+                    y + self.im_size - self.im4 : y + self.im_size,
+                    self.im4 + x : x + self.im_size - self.im4,
+                ] = res[
+                    b,
+                    self.im_size - self.im4 : self.im_size,
+                    self.im4 : self.im_size - self.im4,
+                ]
+            if x == 0 and y == 0:
+                out_array[y : y + self.im4, x : x + self.im4] = res[
+                    b, : self.im4, : self.im4
+                ]
+            if x == 0 and y == h - self.im_size:
+                out_array[
+                    y + self.im_size - self.im4 : y + self.im_size, x : x + self.im4
+                ] = res[b, self.im_size - self.im4 : self.im_size, : self.im4]
+            if x == w - self.im_size and y == 0:
+                out_array[
+                    y : y + self.im4, x + self.im_size - self.im4 : x + self.im_size
+                ] = res[b, : self.im4, self.im_size - self.im4 : self.im_size]
+            if x == w - self.im_size and y == h - self.im_size:
+                out_array[
+                    y + self.im_size - self.im4 : y + self.im_size,
+                    x + self.im_size - self.im4 : x + self.im_size,
+                ] = res[
+                    b,
+                    self.im_size - self.im4 : self.im_size,
+                    self.im_size - self.im4 : self.im_size,
+                ]
             b += 1
-        
-            
+
     def fill_header(self, hdu):
-        """ Fill the header of the given HDU with processing info
-        """
+        """Fill the header of the given HDU with processing info"""
 
         hdu.header["MM_UTC"] = time.asctime(time.gmtime())
         hdu.header.comments["MM_UTC"] = "MaxiMask UTC processing date"
         hdu.header["MM_LOC"] = time.asctime(time.localtime())
         hdu.header.comments["MM_LOC"] = "MaxiMask LOC processing date"
-        
+
         if self.priors is not None:
             hdu.header["PRIORS"] = "Yes"
         else:
@@ -323,7 +416,7 @@ class MaxiMask_inference(object):
         else:
             hdu.header["SMASK"] = "No"
         hdu.header.comments["SMASK"] = "Whether binary power mask was applied or not"
-        
+
         k = 0
         for cl in range(self.nb_classes):
             if self.class_flags[cl]:
@@ -331,36 +424,80 @@ class MaxiMask_inference(object):
                 hdu.header[f"{self.class_abbr[cl]}_DIM"] = f"{k}"
                 if self.priors is not None:
                     hdu.header[f"{self.class_abbr[cl]}_PR"] = f"{self.priors[cl]:.2f}"
-                    hdu.header.comments[f"{self.class_abbr[cl]}_PR"] = f"{self.class_abbr[cl]} prior"
+                    hdu.header.comments[
+                        f"{self.class_abbr[cl]}_PR"
+                    ] = f"{self.class_abbr[cl]} prior"
                 if self.thresholds is not None:
-                    hdu.header[f"{self.class_abbr[cl]}_TH"] = f"{self.thresholds[cl]:.2f}"
-                    hdu.header.comments[f"{self.class_abbr[cl]}_TH"] = f"{self.class_abbr[cl]} threshold"
+                    hdu.header[
+                        f"{self.class_abbr[cl]}_TH"
+                    ] = f"{self.thresholds[cl]:.2f}"
+                    hdu.header.comments[
+                        f"{self.class_abbr[cl]}_TH"
+                    ] = f"{self.class_abbr[cl]} threshold"
                 if self.sing_mask:
                     hdu.header[f"{self.class_abbr[cl]}_SM"] = f"{self.bin_powers[k]}"
-                    hdu.header.comments[f"{self.class_abbr[cl]}_SM"] = f"{self.class_abbr[cl]} binary power value"
+                    hdu.header.comments[
+                        f"{self.class_abbr[cl]}_SM"
+                    ] = f"{self.class_abbr[cl]} binary power value"
                 k += 1
 
-                    
+
 def main():
 
     ### parameter parser
-    parser = argparse.ArgumentParser(description='MaxiMask command line parameters:')
+    parser = argparse.ArgumentParser(description="MaxiMask command line parameters:")
 
     # positional parameter
-    parser.add_argument("im_path", type=str, help='path to the image(s) to be processed')
+    parser.add_argument(
+        "im_path", type=str, help="path to the image(s) to be processed"
+    )
 
     # optional parameters
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    net_dir = os.path.join(os.path.dirname(script_dir), "data/tensorflow_models/maximask")
+    net_dir = os.path.join(
+        os.path.dirname(script_dir), "data/tensorflow_models/maximask"
+    )
     config_dir = os.path.join(os.path.dirname(script_dir), "data/configs")
-    parser.add_argument("--net_dir", type=str, help='neural network graphs and weights directory. Default is </abs_path_to_scripts/../tensorflow_models/maximask>', default=net_dir)
-    parser.add_argument("--config_dir", type=str, help='configuration file directory. Default is </abs_path_to_script/../data/configs>', default=config_dir)
-    parser.add_argument("--prior_modif", type=utils.str2bool, help='bool indicating if probability maps should be prior modified. Default is True', default=True)
-    parser.add_argument("--proba_thresh", type=utils.str2bool, help='bool indicating if probability maps should be thresholded. Default is True', default=True)
-    parser.add_argument("--single_mask", type=utils.str2bool, help='bool indicating if resulting masks are joined in a single mask using a binary base. Default is False', default=False)
-    parser.add_argument("--batch_size", type=int, help='neural network batch size. Default is 8. You might want to use a lower value if you have RAM issues', default=8)
-    parser.add_argument("-v", "--verbose", help="activate output verbosity", action="store_true")
-    
+    parser.add_argument(
+        "--net_dir",
+        type=str,
+        help="neural network graphs and weights directory. Default is </abs_path_to_scripts/../tensorflow_models/maximask>",
+        default=net_dir,
+    )
+    parser.add_argument(
+        "--config_dir",
+        type=str,
+        help="configuration file directory. Default is </abs_path_to_script/../data/configs>",
+        default=config_dir,
+    )
+    parser.add_argument(
+        "--prior_modif",
+        type=utils.str2bool,
+        help="bool indicating if probability maps should be prior modified. Default is True",
+        default=True,
+    )
+    parser.add_argument(
+        "--proba_thresh",
+        type=utils.str2bool,
+        help="bool indicating if probability maps should be thresholded. Default is True",
+        default=True,
+    )
+    parser.add_argument(
+        "--single_mask",
+        type=utils.str2bool,
+        help="bool indicating if resulting masks are joined in a single mask using a binary base. Default is False",
+        default=False,
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        help="neural network batch size. Default is 8. You might want to use a lower value if you have RAM issues",
+        default=8,
+    )
+    parser.add_argument(
+        "-v", "--verbose", help="activate output verbosity", action="store_true"
+    )
+
     # retrieve parameters
     args = parser.parse_args()
     im_path = args.im_path
@@ -377,11 +514,13 @@ def main():
         log.basicConfig(format="%(levelname)s: %(message)s")
 
     nb_classes = 14
-        
+
     # read flag file
     flag_file_path = os.path.join(config_dir, "classes.flags")
-    class_flags = utils.read_config_file(flag_file_path, nb_classes, log) # replace with file_path ?
-    if np.all(class_flags==0):
+    class_flags = utils.read_config_file(
+        flag_file_path, nb_classes, log
+    )  # replace with file_path ?
+    if np.all(class_flags == 0):
         log.error("No output class was requested...")
         raise ValueError
 
@@ -395,33 +534,39 @@ def main():
     # read thresh file
     thresh_file_path = os.path.join(config_dir, "classes.thresh")
     if proba_thresh:
-        thresholds = utils.read_config_file(thresh_file_path, nb_classes, log, to_float=True)
+        thresholds = utils.read_config_file(
+            thresh_file_path, nb_classes, log, to_float=True
+        )
     else:
         thresholds = None
     if thresholds is None and sing_mask:
         log.error("Cannot output single mask binary map if not thresholding")
         raise ValueError
-        
-    mm_inf = MaxiMask_inference(im_path, net_dir, class_flags, priors, thresholds, sing_mask, batch_size)
+
+    mm_inf = MaxiMask_inference(
+        im_path, net_dir, class_flags, priors, thresholds, sing_mask, batch_size
+    )
     _, t = mm_inf.process_all()
-    if t<60:
+    if t < 60:
         log.info(f"All done: {t:.2f}s")
     else:
-        if t<3600:
+        if t < 3600:
             m, s = divmod(t, 60)
             log.info(f"All done: {int(m):02d}min{s:.2f}s")
         else:
-            if t<3600*24:
+            if t < 3600 * 24:
                 m, s = divmod(t, 60)
                 h, m = divmod(m, 60)
                 log.info(f"All done: {int(h):d}h{int(m):02d}min{s:.2f}s")
             else:
-                if t<3600*24*365:
+                if t < 3600 * 24 * 365:
                     m, s = divmod(t, 60)
                     h, m = divmod(m, 60)
                     d, h = divmod(h, 24)
-                    log.info(f"All done: {int(d):d}d{int(h):02d}h{int(m):02d}min{s:.2f}s")
+                    log.info(
+                        f"All done: {int(d):d}d{int(h):02d}h{int(m):02d}min{s:.2f}s"
+                    )
 
-                    
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
