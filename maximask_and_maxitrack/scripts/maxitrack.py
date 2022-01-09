@@ -15,9 +15,8 @@ import logging as log
 
 from astropy.io import fits
 
-sys.path.insert(1, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "utils"))
-import utils
-                
+from maximask_and_maxitrack import utils
+
 
 class MaxiTrack_inference(object):
 
@@ -211,7 +210,7 @@ class MaxiTrack_inference(object):
 
         # make predictions
         res = tf_model(inp, False)[:, 1]
-        print(res)
+
         # apply eventual prior modification
         if self.prior is not None:
             prior_factor = (1-self.prior)/self.prior
@@ -230,8 +229,8 @@ def main():
 
     # optional parameters
     default_file_dir = os.path.dirname(os.path.abspath(__file__))
-    default_net_dir = os.path.join(os.path.dirname(default_file_dir), "models/maxitrack")
-    parser.add_argument("--net_dir", type=str, help='neural network graphs and weights directory. Default is </abs_path_to_rep/models/maxitrack>', default=default_net_dir)
+    default_net_dir = os.path.join(os.path.dirname(default_file_dir), "data/tensorflow_models/maxitrack")
+    parser.add_argument("--net_dir", type=str, help='neural network graphs and weights directory. Default is </abs_path_to_script/../tensorflow_models/maxitrack>', default=default_net_dir)
     parser.add_argument("--prior", type=float, help='prior value to use. Default is 0.5', default=0.5)
     parser.add_argument("--frac", type=float, help='value specifying a fraction of all the HDUs to use to speed up processing. Default is 1', default=1)
     parser.add_argument("--batch_size", type=int, help='neural network batch size. Default is 16. You might want to use a lower value if you have RAM issues', default=16)

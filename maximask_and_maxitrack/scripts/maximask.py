@@ -14,8 +14,7 @@ import logging as log
 
 from astropy.io import fits
 
-sys.path.insert(1, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "utils"))
-import utils
+from maximask_and_maxitrack import utils
 
 
 class MaxiMask_inference(object):
@@ -351,16 +350,14 @@ def main():
     parser.add_argument("im_path", type=str, help='path the image(s) to be processed')
 
     # optional parameters
-    file_dir = os.path.dirname(os.path.abspath(__file__))
-    net_dir = os.path.join(os.path.dirname(file_dir), "models/maximask")
-    config_dir = os.path.join(os.path.dirname(file_dir), "configs")
-    parser.add_argument("--net_dir", type=str, help='neural network graphs and weights directory. Default is </abs_path_to_rep/models/maximask>', default=net_dir)
-    parser.add_argument("--class_dir", type=str, help='class configuration file directory. Default is </abs_path_to_rep/configs>', default=config_dir)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    net_dir = os.path.join(os.path.dirname(script_dir), "data/tensorflow_models/maximask")
+    config_dir = os.path.join(os.path.dirname(script_dir), "data/configs")
+    parser.add_argument("--net_dir", type=str, help='neural network graphs and weights directory. Default is </abs_path_to_scripts/../tensorflow_models/maximask>', default=net_dir)
+    parser.add_argument("--config_dir", type=str, help='configuration file directory. Default is </abs_path_to_script/../data/configs>', default=config_dir)
     parser.add_argument("--prior_modif", type=utils.str2bool, help='bool indicating if probability maps should be prior modified. Default is True', default=True)
-    parser.add_argument("--prior_dir", type=str, help='prior configuration file directory. Default is </abs_path_to_rep/configs>', default=config_dir)
     parser.add_argument("--proba_thresh", type=utils.str2bool, help='bool indicating if probability maps should be thresholded. Default is True', default=True)
-    parser.add_argument("--thresh_dir", type=str, help='threshold configuration file directory. Default is </abs_path_to_rep/configs>', default=config_dir)
-    parser.add_argument("--single_mask", type=utils.str2bool, help='bool indicating if resulting masks are joined in a single mask using a binary base', default=False)
+    parser.add_argument("--single_mask", type=utils.str2bool, help='bool indicating if resulting masks are joined in a single mask using a binary base. Default is False', default=False)
     parser.add_argument("--batch_size", type=int, help='neural network batch size. Default is 8. You might want to use a lower value if you have RAM issues', default=8)
     parser.add_argument("-v", "--verbose", help="activate output verbosity", action="store_true")
     
@@ -368,11 +365,9 @@ def main():
     args = parser.parse_args()
     im_path = args.im_path
     net_dir = args.net_dir
-    class_dir = args.class_dir
+    config_dir = args.config_dir
     prior_modif = args.prior_modif
-    prior_dir = args.prior_dir
     proba_thresh = args.proba_thresh
-    thresh_dir = args.thresh_dir
     sing_mask = args.single_mask
     batch_size = args.batch_size
     verbose = args.verbose
@@ -384,21 +379,21 @@ def main():
     nb_classes = 14
         
     # read flag file
-    flag_file_path = os.path.join(class_dir, "classes.flags")
+    flag_file_path = os.path.join(config_dir, "classes.flags")
     class_flags = utils.read_config_file(flag_file_path, nb_classes, log) # replace with file_path ?
     if np.all(class_flags==0):
         log.error("No output class was requested...")
         raise ValueError
 
     # read prior file
-    prior_file_path = os.path.join(prior_dir, "classes.priors")
+    prior_file_path = os.path.join(config_dir, "classes.priors")
     if prior_modif:
         priors = utils.read_config_file(prior_file_path, nb_classes, log, to_float=True)
     else:
         priors = None
 
     # read thresh file
-    thresh_file_path = os.path.join(thresh_dir, "classes.thresh")
+    thresh_file_path = os.path.join(config_dir, "classes.thresh")
     if proba_thresh:
         thresholds = utils.read_config_file(thresh_file_path, nb_classes, log, to_float=True)
     else:
