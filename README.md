@@ -53,9 +53,15 @@ Note that you can also provide `.fits.fz` or `.fits.gz` extensions to MaxiMask a
 ## Minimal example
 If you run:
 ```
-maximask test/test_im.fits.fz
+maximask test/test_im.fits.fz -v
 ```
 You should obtain a file named <test_im.masks.fits> in the <test> directory that is the same as <test_out.fits.fz>. It consists of the binary masks of each contaminant class. You can find the list of contaminant classes below in this README.
+
+Note that the first run is always slower because tensorflow proceeds to some optimizations during the first pass. You can experiment this by running:
+```
+maximask test/test.list -v
+```
+Which will process the test image two times in a row.
 
 ## General use
 Here is a more comprehensive description of MaxiMask. It can be obtained by running `maximask -h`:
