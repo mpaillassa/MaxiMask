@@ -123,7 +123,9 @@ class MaxiMask_inference(object):
             self.bin_powers = np.power(
                 2 * np.ones([self.nb_classes]), np.arange(self.nb_classes)
             )[self.class_flags].astype(np.float32)
-            self.bin_powers[-1] = 0
+            # if BG class is requested do not consider it for single mask option
+            if self.nb_classes-1 in self.class_idx:
+                self.bin_powers[-1] = 0
         else:
             self.bin_powers = np.zeros([self.nb_classes], dtype=np.float32)
 
