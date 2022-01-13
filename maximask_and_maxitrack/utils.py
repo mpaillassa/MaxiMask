@@ -282,6 +282,9 @@ def clean_grid(grid):
 def image_norm(im):
     """Image preprocessing and normalization"""
 
+    # safety cast
+    im = im.astype(np.float32)
+    
     # preprocessing
     np.place(im, np.isnan(im), 0)
     np.place(im, im > 80000, 80000)
