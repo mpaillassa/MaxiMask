@@ -2,7 +2,7 @@
 
 # MaxiMask and MaxiTrack
 MaxiMask and MaxiTrack are convolutional neural networks (CNNs) that can detect contaminants in astronomical images. They relate to the following publication:
-<img align="right" width="100" src="imgs/logo.png">
+<img align="right" width="100" src="https://github.com/mpaillassa/MaxiMask/blob/master/imgs/logo.png">
 
 A&A: https://doi.org/10.1051/0004-6361/201936345 
 
@@ -11,7 +11,7 @@ arXiv: https://arxiv.org/abs/1907.08298
 MaxiMask is a semantic segmentation CNN (identifying contaminants at the pixel level) that can detect various contaminants, including trails, as shown in the image below where it detects the Starlink satellites in the famous DECam image.
 
 <p align="center">
-  <img src="imgs/starlink1.gif" width="600">
+  <img src="imgs/https://github.com/mpaillassa/MaxiMask/blob/master/imgs/starlink1.gif" width="600">
 </p>
 
 MaxiTrack is an image classification CNN (identifying contaminants at the image level) that can detect tracking errors.
