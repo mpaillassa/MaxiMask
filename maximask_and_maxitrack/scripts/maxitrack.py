@@ -7,6 +7,7 @@ import os
 import sys
 import math
 import time
+import tqdm
 import argparse
 
 import numpy as np
@@ -57,7 +58,7 @@ class MaxiTrack_inference(object):
             log.info(f"Using TensorFlow version {tf.__version__}")
 
             # process each file of file list
-            for file_name in file_list:
+            for file_name in tqdm.tqdm(file_list, desc="ALL FILES"):
                 log.info(f"Starting {file_name}")
                 self.process_file(file_name, tf_model)
                 log.info(f"{file_name} done")
