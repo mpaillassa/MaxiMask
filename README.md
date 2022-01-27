@@ -11,7 +11,7 @@ arXiv: https://arxiv.org/abs/1907.08298
 MaxiMask is a semantic segmentation CNN (identifying contaminants at the pixel level) that can detect various contaminants, including trails, as shown in the image below where it detects the Starlink satellites in the famous DECam image.
 
 <p align="center">
-  <img src="imgs/https://github.com/mpaillassa/MaxiMask/blob/master/imgs/starlink1.gif" width="600">
+  <img src="https://github.com/mpaillassa/MaxiMask/blob/master/imgs/starlink1.gif" width="600">
 </p>
 
 MaxiTrack is an image classification CNN (identifying contaminants at the image level) that can detect tracking errors.
