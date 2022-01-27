@@ -108,7 +108,7 @@ class MaxiTrack_inference(object):
             with open("maxitrack.out", "a") as fd:
                 fd.write(f"{file_name} {final_res:.4f}\n")
         else:
-            log.info("Skipping {file_name} because no HDU was found to be processed")
+            log.info(f"Skipping {file_name} because no HDU was found to be processed")
 
     def make_hdu_tasks(self, file_name):
         """Make the hdu task list for the given file_name"""
