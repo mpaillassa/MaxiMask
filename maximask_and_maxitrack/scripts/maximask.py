@@ -7,6 +7,7 @@ import os
 import sys
 import math
 import time
+import tqdm
 import argparse
 
 import numpy as np
@@ -140,7 +141,6 @@ class MaxiMask_inference(object):
         log.info(f"List of files to process: {file_list}")
 
         if len(file_list):
-
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             log.info("##### Beginning of possible Tensorflow logs")
             import tensorflow as tf
@@ -149,8 +149,8 @@ class MaxiMask_inference(object):
             log.info("##### End of Tensorflow logs")
             log.info(f"Using TensorFlow version {tf.__version__}")
 
-            # process each file of file list
-            for file_name in file_list:
+            # process each file of file 
+            for file_name in tqdm.tqdm(file_list, desc="ALL FILES"):
                 log.info(f"Starting {file_name}")
                 self.process_file(file_name, tf_model)
                 log.info(f"{file_name} done")
