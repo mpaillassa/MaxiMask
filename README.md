@@ -23,15 +23,7 @@ You can install the latest version of MaxiMask and MaxiTrack at once via pip:
 pip install MaxiMask -U
 ```
 
-# Dependencies
-* Python >=3.6
-* Scipy >=1.7.1
-* Astropy >=4.3.1
-* tensorflow >=2.3 (CPU backend is expected to be much slower than GPU)
-
-Older versions may work but have not been tested.
-
-In order to avoid installation issues, tensorflow is not automatically installed as a dependency.
+Be aware that additional librairies are needed to enable GPU support with tensorflow (CUDA, CuDNN). You can check [here](https://www.tensorflow.org/install/gpu) for more information. 
 
 # Usage
 
