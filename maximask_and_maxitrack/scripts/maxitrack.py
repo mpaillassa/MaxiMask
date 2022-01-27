@@ -71,38 +71,44 @@ class MaxiTrack_inference(object):
 
         # make hdu tasks
         hdu_task_list = self.make_hdu_tasks(file_name)
-        if self.frac != 1:
-            nb_hdus = len(hdu_task_list)
-            nb_hdus_to_use = int(self.frac * nb_hdus)
-            if nb_hdus_to_use == 0:
-                nb_hdus_to_use = 1
-            log.info(
-                f"Using fraction option with {self.frac} fraction of {nb_hdus} HDUs"
-            )
-            log.info(f"Selecting {nb_hdus_to_use} random HDUs")
-            hdu_task_list = rd.sample(hdu_task_list, nb_hdus_to_use)
+
+        # if at least one usable HDU
+        if len(hdu_task_list):
+            # apply eventual fraction option
+            if self.frac != 1:
+                nb_hdus = len(hdu_task_list)
+                nb_hdus_to_use = int(self.frac * nb_hdus)
+                if nb_hdus_to_use == 0:
+                    nb_hdus_to_use = 1
+                log.info(
+                    f"Using fraction option with {self.frac} fraction of {nb_hdus} HDUs"
+                )
+                log.info(f"Selecting {nb_hdus_to_use} random HDUs")
+                hdu_task_list = rd.sample(hdu_task_list, nb_hdus_to_use)
+            else:
+                log.info("Using all available HDUs")
+
+            # go through all HDUs
+            for hdu_idx, hdu_type, hdu_shape in hdu_task_list:
+                log.info(f"HDU {hdu_idx}")
+
+                # get raw predictions
+                preds, t = self.process_hdu(file_name, hdu_idx, tf_model)
+                log.info(
+                    f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s"
+                )
+
+                # append the results
+                for pred in preds:
+                    all_preds.append(pred)
+
+            final_res = np.mean(all_preds)
+
+            # write file
+            with open("maxitrack.out", "a") as fd:
+                fd.write(f"{file_name} {final_res:.4f}\n")
         else:
-            log.info("Using all available HDUs")
-
-        # process each hdu
-        for hdu_idx, hdu_type, hdu_shape in hdu_task_list:
-            log.info(f"HDU {hdu_idx}")
-
-            # get raw predictions
-            preds, t = self.process_hdu(file_name, hdu_idx, tf_model)
-            log.info(
-                f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s"
-            )
-
-            # append the results
-            for pred in preds:
-                all_preds.append(pred)
-
-        final_res = np.mean(all_preds)
-
-        # write file
-        with open("maxitrack.out", "a") as fd:
-            fd.write(f"{file_name} {final_res:.4f}\n")
+            log.info(f"Skipping {file_name} because no HDU was found to be processed")
 
     def make_hdu_tasks(self, file_name):
         """Make the hdu task list for the given file_name"""
