@@ -171,8 +171,9 @@ class MaxiMask_inference(object):
             if task=="process":
                 at_least_one = True
 
+        # if at least one HDU to be processed
         if at_least_one:
-            # process each hdu
+            # go through all all HDUs
             for hdu_idx, task, hdu_type, hdu_shape in hdu_task_list:
                 log.info(f"HDU {hdu_idx}: {task}")
 
