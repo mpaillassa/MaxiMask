@@ -144,10 +144,11 @@ class MaxiMask_inference(object):
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             log.info("##### Beginning of possible Tensorflow logs")
             import tensorflow as tf
-
             tf_model = tf.saved_model.load(self.net_dir)
             log.info("##### End of Tensorflow logs")
             log.info(f"Using TensorFlow version {tf.__version__}")
+            gpu_devices = tf.config.list_logical_devices("GPU")
+            log.info(f"TensorFlow has created {len(gpu_devices)} logical GPU device(s)")
 
             # process each file of file 
             for file_name in tqdm.tqdm(file_list, desc="ALL FILES"):
