@@ -18,7 +18,7 @@ setup(
             "maxitrack = maximask_and_maxitrack.scripts.maxitrack:main",
         ]
     },
-    install_requires=["astropy", "scipy", "numpy", "tqdm"],
+    install_requires=["astropy>=4.3.1", "scipy>1.7.1", "numpy>=1.21.5", "tqdm>=4.62.3", "tensorflow>=2.3"],
     python_requires=">=3.6",
     license="MIT",
     include_package_data=True,
