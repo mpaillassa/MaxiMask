@@ -165,41 +165,50 @@ class MaxiMask_inference(object):
         # make hdu tasks
         hdu_task_list = self.make_hdu_tasks(file_name)
 
-        # process each hdu
-        for hdu_idx, task, hdu_type, hdu_shape in hdu_task_list:
-            log.info(f"HDU {hdu_idx}: {task}")
+        # check that there is at least one HDU to process
+        at_least_one = False
+        for _, task, _, _ in hdu_task_list:
+            if task=="process":
+                at_least_one = True
 
-            # get raw predictions
-            hdu_preds, t = self.process_hdu(file_name, hdu_idx, task, tf_model)
-            if hdu_shape is not None:
-                log.info(
-                    f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s"
+        if at_least_one:
+            # process each hdu
+            for hdu_idx, task, hdu_type, hdu_shape in hdu_task_list:
+                log.info(f"HDU {hdu_idx}: {task}")
+
+                # get raw predictions
+                hdu_preds, t = self.process_hdu(file_name, hdu_idx, task, tf_model)
+                if hdu_shape is not None:
+                    log.info(
+                        f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s"
+                    )
+
+                # append the HDU
+                if hdu_type == "PrimaryHDU":
+                    hdu = fits.PrimaryHDU(hdu_preds)
+                elif hdu_type == "ImageHDU" or hdu_type == "CompImageHDU":
+                    hdu = fits.ImageHDU(hdu_preds)
+                self.fill_header(hdu)
+                final_file_hdu.append(hdu)
+
+            # write file
+            out_file_name = file_name
+            if ".fz" in out_file_name:
+                out_file_name = out_file_name.replace(".fz", "")
+            if ".gz" in file_name:
+                out_file_name = out_file_name.replace(".gz", "")
+            if "[" in out_file_name:
+                spec_hdu_idx = int(file_name.split("[")[1].split("]")[0])
+                out_file_name = out_file_name.split("[")[0].replace(
+                    ".fits", f".mask{spec_hdu_idx}.fits"
                 )
-
-            # append the HDU
-            if hdu_type == "PrimaryHDU":
-                hdu = fits.PrimaryHDU(hdu_preds)
-            elif hdu_type == "ImageHDU" or hdu_type == "CompImageHDU":
-                hdu = fits.ImageHDU(hdu_preds)
-            self.fill_header(hdu)
-            final_file_hdu.append(hdu)
-
-        # write file
-        out_file_name = file_name
-        if ".fz" in out_file_name:
-            out_file_name = out_file_name.replace(".fz", "")
-        if ".gz" in file_name:
-            out_file_name = out_file_name.replace(".gz", "")
-        if "[" in out_file_name:
-            spec_hdu_idx = int(file_name.split("[")[1].split("]")[0])
-            out_file_name = out_file_name.split("[")[0].replace(
-                ".fits", f".mask{spec_hdu_idx}.fits"
-            )
-            final_file_hdu.writeto(out_file_name, overwrite=True)
+                final_file_hdu.writeto(out_file_name, overwrite=True)
+            else:
+                final_file_hdu.writeto(
+                    out_file_name.replace(".fits", ".mask.fits"), overwrite=True
+                )
         else:
-            final_file_hdu.writeto(
-                out_file_name.replace(".fits", ".mask.fits"), overwrite=True
-            )
+            log.info(f"Skipping {file_name} because no HDU was found to be processed")
 
     def make_hdu_tasks(self, file_name):
         """Make the hdu task list for the given file_name"""
