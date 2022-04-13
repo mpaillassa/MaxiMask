@@ -1,5 +1,5 @@
-graft maximask_and_maxitrack/data
+graft config
+graft models
 graft imgs
 include README.md
 include LICENSE
-include requirements.txt
