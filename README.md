@@ -58,10 +58,7 @@ Which will process the test image two times in a row.
 ## General use
 Here is a more comprehensive description of MaxiMask. It can be obtained by running `maximask -h`:
 ```
-usage: maximask [-h] [--net_dir NET_DIR] [--config_dir CONFIG_DIR]
-                [--prior_modif PRIOR_MODIF] [--proba_thresh PROBA_THRESH]
-                [--single_mask SINGLE_MASK] [--batch_size BATCH_SIZE] [-v]
-                im_path
+usage: maximask [-h] [--net_dir NET_DIR] [--config_dir CONFIG_DIR] [--prior_modif PRIOR_MODIF] [--proba_thresh PROBA_THRESH] [--single_mask SINGLE_MASK] [--batch_size BATCH_SIZE] [-v] im_path
 
 MaxiMask command line parameters:
 
@@ -70,24 +67,17 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --net_dir NET_DIR     neural network graphs and weights directory. Default
-                        is
-                        </abs_path_to_scripts/../tensorflow_models/maximask>
+  --net_dir NET_DIR     neural network graphs and weights directory. Default is </path_to_root/models/maximask>
   --config_dir CONFIG_DIR
-                        configuration file directory. Default is
-                        </abs_path_to_script/../data/configs>
+                        configuration file directory. Default is </path_to_root/config/maximask>
   --prior_modif PRIOR_MODIF
-                        bool indicating if probability maps should be prior
-                        modified. Default is True
+                        bool indicating if probability maps should be prior modified. Default is True
   --proba_thresh PROBA_THRESH
-                        bool indicating if probability maps should be
-                        thresholded. Default is True
+                        bool indicating if probability maps should be thresholded. Default is True
   --single_mask SINGLE_MASK
-                        bool indicating if resulting masks are joined in a
-                        single mask using a binary base. Default is False
+                        bool indicating if resulting masks are joined in a single mask using a binary base. Default is False
   --batch_size BATCH_SIZE
-                        neural network batch size. Default is 8. You might
-                        want to use a lower value if you have RAM issues
+                        neural network batch size. Default is 8. You might want to use a lower value if you have RAM issues
   -v, --verbose         activate output verbosity
 ```
 
@@ -98,7 +88,7 @@ By default MaxiMask will prior adjust and threshold the probabilities.
 
 ### Configuration files
 
-The 3 configuration files are _classes.flags_, _classes.priors_ and _classes.thresh_. Default versions of those files are located in `maximask_and_maxitrack/data/configs`. **Be careful** that if you want to modify them to use different parameters, you need to use the `--config_dir` option to specify the directory and effectively point to those files.
+The 3 configuration files are _classes.flags_, _classes.priors_ and _classes.thresh_. Default versions of those files are located in `config/maximask`. **Be careful** that if you want to modify them to use different parameters, you need to use the `--config_dir` option to specify the directory and effectively point to those files.
 
 The adopted syntax consists of two space separated columns:
 1. the abbreviated class names.
@@ -178,9 +168,7 @@ When running again, MaxiTrack will append the new results to `maxitrack.out` if 
 ## General use
 Here is full description of MaxiMask. It can be obtained by running `maxitrack -h`:
 ```
-usage: maxitrack [-h] [--net_dir NET_DIR] [--prior PRIOR] [--frac FRAC]
-                 [--batch_size BATCH_SIZE] [-v]
-                 im_path
+usage: maxitrack [-h] [--net_dir NET_DIR] [--prior PRIOR] [--frac FRAC] [--batch_size BATCH_SIZE] [-v] im_path
 
 MaxiTrack command line parameters:
 
@@ -189,17 +177,12 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --net_dir NET_DIR     neural network graphs and weights directory. Default
-                        is
-                        </abs_path_to_script/../tensorflow_models/maxitrack>
+  --net_dir NET_DIR     neural network graphs and weights directory. Default is </abs_path_to_script/../tensorflow_models/maxitrack>
   --prior PRIOR         prior value to use. Default is 0.05
-  --frac FRAC           value specifying a fraction of all the HDUs to use to
-                        speed up processing. Default is 1
+  --frac FRAC           value specifying a fraction of all the HDUs to use to speed up processing. Default is 1
   --batch_size BATCH_SIZE
-                        neural network batch size. Default is 16. You might
-                        want to use a lower value if you have RAM issues
+                        neural network batch size. Default is 16. You might want to use a lower value if you have RAM issues
   -v, --verbose         activate output verbosity
-
 ```
 
 ### Probability prior modification
