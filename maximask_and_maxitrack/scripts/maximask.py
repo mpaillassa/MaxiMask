@@ -249,10 +249,12 @@ class MaxiMask_inference(object):
         # make file name
         _, im_path_ext = os.path.splitext(file_name)
         if "[" in im_path_ext:
-            file_name = file_name.split("[")[0]
+            eff_file_name = file_name.split("[")[0]
+        else:
+            eff_file_name = file_name
 
         # get input data
-        with fits.open(file_name) as file_hdu:
+        with fits.open(eff_file_name) as file_hdu:
             hdu = file_hdu[hdu_idx]
             hdu_data = hdu.data
 
@@ -288,7 +290,7 @@ class MaxiMask_inference(object):
                 else:
                     # several batches to process + one last possibly not full
                     nb_batch = nb_blocks // self.batch_size
-                    for b in range(nb_batch):
+                    for b in tqdm.tqdm(range(nb_batch), desc=file_name):
                         batch_coord_list = block_coord_list[
                             b * self.batch_size : (b + 1) * self.batch_size
                         ]
