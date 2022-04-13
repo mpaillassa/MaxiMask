@@ -131,7 +131,7 @@ def check_hdu(hdu, min_size):
     return size_b and data_type_b, infos[2]
 
 
-def background_est(im, k=3, mesh_size=200, full=True):
+def background_est(im, k=3, mesh_size=200, full=True, pad=1):
     """Process a Sextractor like background estimation"""
 
     # get the number blocks to process
@@ -184,12 +184,12 @@ def background_est(im, k=3, mesh_size=200, full=True):
     if not full:
         return back_v, sig_v
     else:
-        back_map = build_map(back_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w)
-        sig_map = build_map(sig_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w)
+        back_map = build_map(back_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w, pad)
+        sig_map = build_map(sig_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w, pad)
         return back_map, sig_map
 
 
-def build_map(grid_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w):
+def build_map(grid_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w, pad):
     """Median filter and interpolate the grid values to build a full continuous map"""
 
     # set the values into the 2d grid to filter and interpolate
@@ -201,25 +201,16 @@ def build_map(grid_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w):
     grid = clean_grid(grid)
 
     # pad this grid to avoid interpolation artefacts on sides
-    pad_grid = np.zeros([h_blocks + 2, w_blocks + 2])
-    pad_grid[1:-1, 1:-1] = grid
-    pad_grid[0, 1:-1] = grid[0, :]
-    pad_grid[1:-1, 0] = grid[:, 0]
-    pad_grid[-1, 1:-1] = grid[-1, :]
-    pad_grid[1:-1, -1] = grid[:, -1]
-    pad_grid[0, 0] = pad_grid[1, 1]
-    pad_grid[0, -1] = pad_grid[1, -2]
-    pad_grid[-1, 0] = pad_grid[-2, 1]
-    pad_grid[-1, -1] = pad_grid[-2, -2]
+    pad_grid = np.pad(grid, pad, "edge")
 
     # median filter
     pad_grid = sign.medfilt(pad_grid, 3)
 
     # interpolate the grid
     f = interp.RectBivariateSpline(
-        np.arange(-mesh_size / 2, (h_blocks + 1) * mesh_size, mesh_size)
+        np.arange(- pad * mesh_size / 2, (h_blocks + pad) * mesh_size + 1, mesh_size)
         + (h % mesh_size) // 2,
-        np.arange(-mesh_size / 2, (w_blocks + 1) * mesh_size, mesh_size)
+        np.arange(- pad * mesh_size / 2, (w_blocks + pad) * mesh_size + 1, mesh_size)
         + (w % mesh_size) // 2,
         pad_grid,
     )
