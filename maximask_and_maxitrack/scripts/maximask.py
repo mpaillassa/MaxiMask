@@ -249,12 +249,10 @@ class MaxiMask_inference(object):
         # make file name
         _, im_path_ext = os.path.splitext(file_name)
         if "[" in im_path_ext:
-            eff_file_name = file_name.split("[")[0]
-        else:
-            eff_file_name = file_name
+            file_name = file_name.split("[")[0]
 
         # get input data
-        with fits.open(eff_file_name) as file_hdu:
+        with fits.open(file_name) as file_hdu:
             hdu = file_hdu[hdu_idx]
             hdu_data = hdu.data
 
@@ -278,8 +276,9 @@ class MaxiMask_inference(object):
                 block_coord_list = self.get_block_coords(h, w)
 
                 # preprocessing
+                log.info("Preprocessing...")
                 hdu_data, t = utils.image_norm(hdu_data)
-                log.info(f"Preprocessing time: {t:.2f}s, {h*w/(t*1e06):.2f}MPix/s")
+                log.info(f"Preprocessing done in {t:.2f}s, {h*w/(t*1e06):.2f}MPix/s")
 
                 # process all the blocks by batches
                 # the process_batch method writes the predictions in preds by reference
@@ -290,7 +289,7 @@ class MaxiMask_inference(object):
                 else:
                     # several batches to process + one last possibly not full
                     nb_batch = nb_blocks // self.batch_size
-                    for b in tqdm.tqdm(range(nb_batch), desc=file_name):
+                    for b in tqdm.tqdm(range(nb_batch), desc="INFERENCE: "):
                         batch_coord_list = block_coord_list[
                             b * self.batch_size : (b + 1) * self.batch_size
                         ]
