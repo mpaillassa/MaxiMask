@@ -164,8 +164,9 @@ class MaxiTrack_inference(object):
         block_coord_list = self.get_block_coords(h, w)
 
         # preprocessing
+        log.info("Preprocessing...")
         im_data, t = utils.image_norm(im_data)
-        log.info(f"Preprocessing time: {t:.2f}s, {h*w/(t*1e06):.2f}MPix/s")
+        log.info(f"Preprocessing done in {t:.2f}s, {h*w/(t*1e06):.2f}MPix/s")
 
         # process all the blocks by batches
         nb_blocks = len(block_coord_list)
@@ -177,7 +178,7 @@ class MaxiTrack_inference(object):
         else:
             # several batches to process + one last possibly not full
             nb_batch = nb_blocks // self.batch_size
-            for b in range(nb_batch):
+            for b in tqdm.tqdm(range(nb_batch), desc="INFERENCE"):
                 batch_coord_list = block_coord_list[
                     b * self.batch_size : (b + 1) * self.batch_size
                 ]
