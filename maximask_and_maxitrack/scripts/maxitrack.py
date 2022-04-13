@@ -238,15 +238,14 @@ def main():
     )
 
     # optional parameters
-    default_file_dir = os.path.dirname(os.path.abspath(__file__))
-    default_net_dir = os.path.join(
-        os.path.dirname(default_file_dir), "data/tensorflow_models/maxitrack"
-    )
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(os.path.dirname(script_dir))
+    net_dir = os.path.join(root_dir, "models/maxitrack")
     parser.add_argument(
         "--net_dir",
         type=str,
         help="neural network graphs and weights directory. Default is </abs_path_to_script/../tensorflow_models/maxitrack>",
-        default=default_net_dir,
+        default=net_dir,
     )
     parser.add_argument(
         "--prior", type=float, help="prior value to use. Default is 0.05", default=0.05

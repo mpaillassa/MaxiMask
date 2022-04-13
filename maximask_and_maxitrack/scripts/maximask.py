@@ -468,20 +468,19 @@ def main():
 
     # optional parameters
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    net_dir = os.path.join(
-        os.path.dirname(script_dir), "data/tensorflow_models/maximask"
-    )
-    config_dir = os.path.join(os.path.dirname(script_dir), "data/configs")
+    root_dir = os.path.dirname(os.path.dirname(script_dir))
+    net_dir = os.path.join(root_dir, "models/maximask")
+    config_dir = os.path.join(root_dir, "config/maximask")
     parser.add_argument(
         "--net_dir",
         type=str,
-        help="neural network graphs and weights directory. Default is </abs_path_to_scripts/../tensorflow_models/maximask>",
+        help="neural network graphs and weights directory. Default is </path_to_root/models/maximask>",
         default=net_dir,
     )
     parser.add_argument(
         "--config_dir",
         type=str,
-        help="configuration file directory. Default is </abs_path_to_script/../data/configs>",
+        help="configuration file directory. Default is </path_to_root/config/maximask>",
         default=config_dir,
     )
     parser.add_argument(
