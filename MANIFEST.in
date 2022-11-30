@@ -1,5 +1,6 @@
-graft config
-graft models
+graft maximask_and_maxitrack/maximask/config
+graft maximask_and_maxitrack/maximask/model
+graft maximask_and_maxitrack/maxitrack/model
 graft imgs
 include README.md
 include LICENSE
