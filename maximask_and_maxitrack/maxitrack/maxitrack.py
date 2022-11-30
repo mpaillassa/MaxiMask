@@ -1,3 +1,4 @@
+"""Script to run MaxiTrack inference."""
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -19,17 +20,18 @@ from maximask_and_maxitrack import utils
 
 
 class MaxiTrack_inference(object):
+    """Class to run MaxiTrack inference."""
 
     im_size = 400
 
     def __init__(self, im_path, net_dir, prior, frac, batch_size):
-        """Initializes the MaxiTrack_inference object.
+        """Initializes the MaxiTrack_inference class.
         Args:
             im_path (string): path to the images to be processed. This can be a fits file, a directory or a list file.
             net_dir (string): path to the MaxiTrack neural network directory.
             prior (float32): tracking error prior. None if the prior modification is not requested.
             frac (float32): value specifying a fraction of all the HDUs to use to speed up processing.
-            batch_size (int): the batch size to use for inference.
+            batch_size (int): batch size to use for inference.
         """
 
         self.im_path = im_path
@@ -40,7 +42,9 @@ class MaxiTrack_inference(object):
 
     @utils.timeit
     def process_all(self):
-        """Process all the images"""
+        """Processes all the requested images.
+        This will write the predictions in the "maxitrack.out" file.
+        """
 
         # get list of files to process
         file_list = utils.get_file_list(self.im_path)
@@ -49,11 +53,13 @@ class MaxiTrack_inference(object):
         if len(file_list):
 
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+            log.info("")
             log.info("##### Beginning of possible Tensorflow logs")
             import tensorflow as tf
 
             tf_model = tf.saved_model.load(self.net_dir)
             log.info("##### End of Tensorflow logs")
+            log.info("")
             log.info(f"Using TensorFlow version {tf.__version__}")
             gpu_devices = tf.config.list_logical_devices("GPU")
             log.info(f"TensorFlow has created {len(gpu_devices)} logical GPU device(s)")
@@ -67,7 +73,13 @@ class MaxiTrack_inference(object):
             log.error(f"No file to process given input path <{self.im_path}>")
 
     def process_file(self, file_name, tf_model):
-        """Process the given fits file"""
+        """Processes a given fits file.
+        This will append the predictions in the "maxitrack.out" file.
+
+        Args:
+            file_name (string): name of the file to process.
+            tf_model (tf.keras.Model): MaxiTrack tensorflow model.
+        """
 
         all_preds = []
 
@@ -113,7 +125,14 @@ class MaxiTrack_inference(object):
             log.info(f"Skipping {file_name} because no HDU was found to be processed")
 
     def make_hdu_tasks(self, file_name):
-        """Make the hdu task list for the given file_name"""
+        """Makes the hdu task list for the given file to process.
+
+        Args:
+            file_name (string): name of the file to process.
+        Returns:
+            hdu_task_list (list): list of hdu tasks for the file to process.
+                                  each element contains the hdu number and the type and shape of the data contained in the HDU.
+        """
 
         hdu_task_list = []
 
@@ -146,7 +165,15 @@ class MaxiTrack_inference(object):
 
     @utils.timeit
     def process_hdu(self, file_name, hdu_idx, tf_model):
-        """Process the hdu according to the task"""
+        """Processes the hdu of a given file according to the task.
+
+        Args:
+            file_name (string): name of the file to process.
+            hdu_idx (int): index of the HDU to process.
+            tf_model (tf.keras.Model): MaxiTrack tensorflow model.
+        Returns:
+            out_array (np.ndarray): MaxiTrack predictions over the image.
+        """
 
         # make file name
         _, im_path_ext = os.path.splitext(file_name)
@@ -192,7 +219,14 @@ class MaxiTrack_inference(object):
         return out_array
 
     def get_block_coords(self, h, w):
-        """Get the coordinate list of blocks to process"""
+        """Gets the coordinate list of blocks to process.
+
+        Args:
+            h (int): full height of the image to process.
+            w (int): full width of the image to process.
+        Returns:
+            coord_list (list): list of coordinates of blocks to process.
+        """
 
         coord_list = []
         h_r, w_r = h % self.im_size, w % self.im_size
@@ -203,7 +237,15 @@ class MaxiTrack_inference(object):
         return coord_list
 
     def process_batch(self, im_data, tf_model, batch_coord_list):
-        """Process a batch of inputs"""
+        """Process a batch of inputs.
+
+        Args:
+            im_data (np.ndarray): image data to process.
+            tf_model (tf.keras.Model): MaxiTrack tensorflow model.
+            batch_coord_list (list): list of coordinates of block to process for this batch.
+        Returns:
+            res (tf.Tensor): MaxiTrack predictions for each image of the batch.
+        """
 
         # prepare input data batch
         h, w = im_data.shape
@@ -283,7 +325,10 @@ def main():
     else:
         log.basicConfig(format="%(levelname)s: %(message)s")
 
+    # build MaxiTrack_inference object
     mt_inf = MaxiTrack_inference(im_path, net_dir, prior, frac, batch_size)
+
+    # process all
     _, t = mt_inf.process_all()
     if t < 60:
         log.info(f"All done: {t:.2f}s")

@@ -1,3 +1,4 @@
+"""Script to run MaxiMask inference."""
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -18,6 +19,7 @@ from maximask_and_maxitrack import utils
 
 
 class MaxiMask_inference(object):
+    """Class to run MaxiMask inference."""
 
     nb_classes = 14
     im_size = 400
@@ -78,15 +80,16 @@ class MaxiMask_inference(object):
     def __init__(
         self, im_path, net_dir, class_flags, priors, thresholds, sing_mask, batch_size
     ):
-        """Initializes the MaxiMask_inference object.
+        """Initializes the MaxiMask_inference class.
+
         Args:
             im_path (string): path to the images to be processed. This can be a fits file, a directory or a list file.
             net_dir (string): path to the MaxiMask neural network directory.
-            class_flags (np.array): bool flag for each of the classes.
-            priors (np.array): float32 prior for each of the classes. None if the prior modification is not requested.
-            thresholds (np.array): float32 threshold for each of the classes. None if thresholding is not requested.
+            class_flags (np.ndarray): boolean flags for class selection.
+            priors (np.ndarray): priors for each class. None if the prior modification is not requested.
+            thresholds (np.ndarray): thresholds for each class. None if thresholding is not requested.
             sing_mask (bool): boolean indicating if the single binary output map option is requested.
-            batch_size (int): the batch size to use for inference.
+            batch_size (int): batch size to use for inference.
         """
 
         self.im_path = im_path
@@ -133,7 +136,9 @@ class MaxiMask_inference(object):
 
     @utils.timeit
     def process_all(self):
-        """Process all the images"""
+        """Processes all the requested images.
+        This will write the corresponding mask files on disk.
+        """
 
         # get list of files to process
         file_list = utils.get_file_list(self.im_path)
@@ -141,11 +146,13 @@ class MaxiMask_inference(object):
 
         if len(file_list):
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+            log.info("")
             log.info("##### Beginning of possible Tensorflow logs")
             import tensorflow as tf
 
             tf_model = tf.saved_model.load(self.net_dir)
             log.info("##### End of Tensorflow logs")
+            log.info("")
             log.info(f"Using TensorFlow version {tf.__version__}")
             gpu_devices = tf.config.list_logical_devices("GPU")
             log.info(f"TensorFlow has created {len(gpu_devices)} logical GPU device(s)")
@@ -159,7 +166,13 @@ class MaxiMask_inference(object):
             log.error(f"No file to process given input path <{self.im_path}>")
 
     def process_file(self, file_name, tf_model):
-        """Process the given fits file"""
+        """Processes a given fits file.
+        This will write the corresponding mask file on disk.
+
+        Args:
+            file_name (string): name of the file to process.
+            tf_model (tf.keras.Model): MaxiMask tensorflow model.
+        """
 
         final_file_hdu = fits.HDUList()
 
@@ -213,7 +226,14 @@ class MaxiMask_inference(object):
             log.info(f"Skipping {file_name} because no HDU was found to be processed")
 
     def make_hdu_tasks(self, file_name):
-        """Make the hdu task list for the given file_name"""
+        """Makes the hdu task list for the given file to process.
+
+        Args:
+            file_name (string): name of the file to process.
+        Returns:
+            hdu_task_list (list): list of hdu tasks for the file to process.
+                                  each element contains the hdu number, whether to "copy" or "process" and the type and shape of the data contained in the HDU.
+        """
 
         hdu_task_list = []
 
@@ -244,7 +264,16 @@ class MaxiMask_inference(object):
 
     @utils.timeit
     def process_hdu(self, file_name, hdu_idx, task, tf_model):
-        """Process the hdu according to the task"""
+        """Processes the hdu of a given file according to the task.
+
+        Args:
+            file_name (string): name of the file to process.
+            hdu_idx (int): index of the HDU to process.
+            task (list): task related to the HDU to process (see make_hdu_tasks doc).
+            tf_model (tf.keras.Model): MaxiMask tensorflow model.
+        Returns:
+            preds or hdu_data (np.ndarray): MaxiMask predictions for the requested HDU or same HDU data if the task is "copy".
+        """
 
         # make file name
         _, im_path_ext = os.path.splitext(file_name)
@@ -299,13 +328,20 @@ class MaxiMask_inference(object):
                         batch_coord_list = block_coord_list[-rest:]
                         self.process_batch(hdu_data, preds, tf_model, batch_coord_list)
 
-                if self.sing_mask:
-                    return preds
-                else:
-                    return np.transpose(preds, (2, 0, 1))
+                if not self.sing_mask:
+                    preds = np.transpose(preds, (2, 0, 1))
+
+                return preds
 
     def get_block_coords(self, h, w):
-        """Get the coordinate list of blocks to process"""
+        """Gets the coordinate list of blocks to process.
+
+        Args:
+            h (int): full height of the image to process.
+            w (int): full width of the image to process.
+        Returns:
+            coord_list (list): list of coordinates of blocks to process.
+        """
 
         coord_list = []
 
@@ -324,7 +360,15 @@ class MaxiMask_inference(object):
         return coord_list
 
     def process_batch(self, im_data, out_array, tf_model, batch_coord_list):
-        """Process a batch of inputs"""
+        """Processes a batch of inputs.
+        This fills the output array by reference (class selection, application of priors and thresholds and single mask process happen within the tensorflow model).
+
+        Args:
+            im_data (np.ndarray): image data to process.
+            out_array (np.ndarray): output array to fill with predictions.
+            tf_model (tf.keras.Model): MaxiMask tensorflow model.
+            batch_coord_list (list): list of coordinates of block to process for this batch.
+        """
 
         # prepare input data batch
         h, w = im_data.shape
@@ -406,7 +450,11 @@ class MaxiMask_inference(object):
             b += 1
 
     def fill_header(self, hdu):
-        """Fill the header of the given HDU with processing info"""
+        """Fills the header of the given HDU with processing information.
+
+        Args:
+            hdu (astropy.io.fits.HDUList): HDU to make header for.
+        """
 
         hdu.header["MM_UTC"] = time.asctime(time.gmtime())
         hdu.header.comments["MM_UTC"] = "MaxiMask UTC processing date"
@@ -555,9 +603,12 @@ def main():
         log.error("Cannot output single mask binary map if not thresholding")
         raise ValueError
 
+    # build MaxiMask_inference object
     mm_inf = MaxiMask_inference(
         im_path, net_dir, class_flags, priors, thresholds, sing_mask, batch_size
     )
+
+    # process all
     _, t = mm_inf.process_all()
     if t < 60:
         log.info(f"All done: {t:.2f}s")
