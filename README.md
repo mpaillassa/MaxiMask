@@ -4,7 +4,7 @@
 MaxiMask and MaxiTrack are convolutional neural networks (CNNs) that can detect contaminants in astronomical images. They relate to the following publication:
 <img align="right" width="100" src="https://github.com/mpaillassa/MaxiMask/blob/master/imgs/logo.png">
 
-A&A: https://doi.org/10.1051/0004-6361/201936345 
+A&A: https://doi.org/10.1051/0004-6361/201936345
 
 arXiv: https://arxiv.org/abs/1907.08298
 
@@ -23,7 +23,7 @@ You can install the latest version of MaxiMask and MaxiTrack at once via pip:
 pip install MaxiMask -U
 ```
 
-Be aware that additional librairies are needed to enable GPU support with tensorflow (CUDA, CuDNN). You can check [here](https://www.tensorflow.org/install/gpu) for more information. 
+Be aware that additional librairies are needed to enable GPU support with tensorflow (CUDA, CuDNN). You can check [here](https://www.tensorflow.org/install/gpu) for more information.
 
 # Usage
 
@@ -33,13 +33,13 @@ The minimal way to run MaxiMask is:
 maximask <im_path>
 ```
 Where `im_path` indicates the images you want to process. It can specify:
-  - A specific image HDU (CFITSIO notation) like `file.fits[nb_hdu]`: MaxiMask will process only the hdu `nb_hdu` of `file.fits`. 
+  - A specific image HDU (CFITSIO notation) like `file.fits[nb_hdu]`: MaxiMask will process only the hdu `nb_hdu` of `file.fits`.
 This should return a file `file.masks<nb_hdu>.fits` with the masks in the Primary HDU.
   - A fits file like `file.fits`: MaxiMask will process all the image HDUs that contain 2D data and copy the source HDU otherwise.
 This should return a file `file.masks.fits` that has the same HDU structure than <file.fits>.
   - A directory: MaxiMask will process all the fits images of this directory as in the previous case.
   - A list file: this must be a file with <.list> extension containing one fits file path </path/to/file.fits> per line. MaxiMask will process each file as in the second case.
- 
+
 Note that you can also provide `.fits.fz` or `.fits.gz` extensions to MaxiMask and that the resulting masks are written in the same directory than the input image(s) designed by `im_path`.
 
 ## Minimal example
@@ -163,7 +163,7 @@ You should obtain a file in the current directory named `maxitrack.out` containi
 test_im.fits.fz 0.0000
 ```
 Where the number corresponding to the image name is the probability that this image is affected by tracking error.
-When running again, MaxiTrack will append the new results to `maxitrack.out` if it already exists. 
+When running again, MaxiTrack will append the new results to `maxitrack.out` if it already exists.
 
 ## General use
 Here is full description of MaxiMask. It can be obtained by running `maxitrack -h`:
@@ -193,8 +193,8 @@ When giving a FITS file containing N HDUs, MaxiTrack will use the N HDUs by defa
 
 
 # LICENSE
-Copyright (c) 2018 Maxime Paillassa. 
+Copyright (c) 2018 Maxime Paillassa.
 
-Both code and model weights are released under MIT license. 
+Both code and model weights are released under MIT license.
 
 See LICENSE for details.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="MaxiMask",
@@ -18,7 +18,13 @@ setup(
             "maxitrack = maximask_and_maxitrack.maxitrack.maxitrack:main",
         ]
     },
-    install_requires=["astropy>=5.1.1", "scipy>=1.9.3", "numpy>=1.23.5", "tqdm>=4.62.3", "tensorflow>=2.11"],
+    install_requires=[
+        "astropy>=5.1.1",
+        "scipy>=1.9.3",
+        "numpy>=1.23.5",
+        "tqdm>=4.62.3",
+        "tensorflow>=2.11",
+    ],
     python_requires=">=3.6",
     license="MIT",
     include_package_data=True,

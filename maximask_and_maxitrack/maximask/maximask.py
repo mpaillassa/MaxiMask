@@ -3,16 +3,15 @@
 
 # Copyright (c) 2018 Maxime Paillassa. Released under MIT.
 
+import argparse
+import logging as log
+import math
 import os
 import sys
-import math
 import time
-import tqdm
-import argparse
 
 import numpy as np
-import logging as log
-
+import tqdm
 from astropy.io import fits
 
 from maximask_and_maxitrack import utils
@@ -125,7 +124,7 @@ class MaxiMask_inference(object):
                 2 * np.ones([self.nb_classes]), np.arange(self.nb_classes)
             )[self.class_flags].astype(np.float32)
             # if BG class is requested do not consider it for single mask option
-            if self.nb_classes-1 in self.class_idx:
+            if self.nb_classes - 1 in self.class_idx:
                 self.bin_powers[-1] = 0
         else:
             self.bin_powers = np.zeros([self.nb_classes], dtype=np.float32)
@@ -144,13 +143,14 @@ class MaxiMask_inference(object):
             os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
             log.info("##### Beginning of possible Tensorflow logs")
             import tensorflow as tf
+
             tf_model = tf.saved_model.load(self.net_dir)
             log.info("##### End of Tensorflow logs")
             log.info(f"Using TensorFlow version {tf.__version__}")
             gpu_devices = tf.config.list_logical_devices("GPU")
             log.info(f"TensorFlow has created {len(gpu_devices)} logical GPU device(s)")
 
-            # process each file of file 
+            # process each file of file
             for file_name in tqdm.tqdm(file_list, desc="ALL FILES"):
                 log.info(f"Starting {file_name}")
                 self.process_file(file_name, tf_model)
@@ -169,7 +169,7 @@ class MaxiMask_inference(object):
         # check that there is at least one HDU to process
         at_least_one = False
         for _, task, _, _ in hdu_task_list:
-            if task=="process":
+            if task == "process":
                 at_least_one = True
 
         # if at least one HDU to be processed

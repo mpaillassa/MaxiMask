@@ -1,13 +1,13 @@
+import argparse
 import math
+import os
+import sys
 import time
+
 import numpy as np
 import scipy.interpolate as interp
 import scipy.signal as sign
 from astropy.io import fits
-
-import argparse
-import sys
-import os
 
 
 def timeit(f):
@@ -208,9 +208,9 @@ def build_map(grid_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w, pad):
 
     # interpolate the grid
     f = interp.RectBivariateSpline(
-        np.arange(- pad * mesh_size / 2, (h_blocks + pad) * mesh_size + 1, mesh_size)
+        np.arange(-pad * mesh_size / 2, (h_blocks + pad) * mesh_size + 1, mesh_size)
         + (h % mesh_size) // 2,
-        np.arange(- pad * mesh_size / 2, (w_blocks + pad) * mesh_size + 1, mesh_size)
+        np.arange(-pad * mesh_size / 2, (w_blocks + pad) * mesh_size + 1, mesh_size)
         + (w % mesh_size) // 2,
         pad_grid,
     )
@@ -275,7 +275,7 @@ def image_norm(im):
 
     # safety cast
     im = im.astype(np.float32)
-    
+
     # preprocessing
     np.place(im, np.isnan(im), 0)
     np.place(im, im > 80000, 80000)

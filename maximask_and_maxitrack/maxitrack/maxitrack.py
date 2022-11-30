@@ -3,17 +3,16 @@
 
 # Copyright (c) 2018 Maxime Paillassa. Released under MIT.
 
-import os
-import sys
-import math
-import time
-import tqdm
 import argparse
+import logging as log
+import math
+import os
+import random as rd
+import sys
+import time
 
 import numpy as np
-import random as rd
-import logging as log
-
+import tqdm
 from astropy.io import fits
 
 from maximask_and_maxitrack import utils
@@ -58,7 +57,7 @@ class MaxiTrack_inference(object):
             log.info(f"Using TensorFlow version {tf.__version__}")
             gpu_devices = tf.config.list_logical_devices("GPU")
             log.info(f"TensorFlow has created {len(gpu_devices)} logical GPU device(s)")
-            
+
             # process each file of file list
             for file_name in tqdm.tqdm(file_list, desc="ALL FILES"):
                 log.info(f"Starting {file_name}")
