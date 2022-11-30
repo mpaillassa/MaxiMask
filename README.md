@@ -177,7 +177,7 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --net_dir NET_DIR     neural network graphs and weights directory. Default is </path_to_script/maximask_and_maxitrack/maxitrack/model>
+  --net_dir NET_DIR     neural network graphs and weights directory. Default is </path_to_root/maximask_and_maxitrack/maxitrack/model>
   --prior PRIOR         prior value to use. Default is 0.05
   --frac FRAC           value specifying a fraction of all the HDUs to use to speed up processing. Default is 1
   --batch_size BATCH_SIZE

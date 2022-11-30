@@ -285,7 +285,7 @@ def main():
     parser.add_argument(
         "--net_dir",
         type=str,
-        help="neural network graphs and weights directory. Default is </path_to_script/maximask_and_maxitrack/maxitrack/model>",
+        help="neural network graphs and weights directory. Default is </path_to_root/maximask_and_maxitrack/maxitrack/model>",
         default=net_dir,
     )
     parser.add_argument(
