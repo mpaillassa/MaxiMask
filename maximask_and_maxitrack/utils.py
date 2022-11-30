@@ -1,3 +1,4 @@
+"""File containing utility functions for MaxiMask and MaxiTrack inference."""
 import argparse
 import math
 import os
@@ -11,7 +12,13 @@ from astropy.io import fits
 
 
 def timeit(f):
-    """A decorator to measure execution time of a function"""
+    """Decorator to measure execution time of a function.
+
+    Args:
+        f (function): function to decorate.
+    Returns:
+        timed (function): decorated function.
+    """
 
     def timed(*args, **kw):
         ts = time.perf_counter()
@@ -22,7 +29,13 @@ def timeit(f):
 
 
 def str2bool(v):
-    """Translating possible boolean inputs to boolean type"""
+    """Translate possible boolean inputs to boolean type.
+
+    Args:
+        v (string): value to translate to bool.
+    Returns
+        (bool): resulting bool.
+    """
 
     if v.lower() in ("yes", "true", "t", "y", "1"):
         return True
@@ -33,7 +46,16 @@ def str2bool(v):
 
 
 def read_config_file(file_path, nb_classes, log, to_float=False):
-    """Read a configuration file"""
+    """Reads a configuration file.
+
+    Args:
+        file_path (string): file path to read.
+        nb_classes (int): number of classes.
+        log (logging.log): log object.
+        to_float (bool): whether to cast the read configuration parameters to float or bool.
+    Returns:
+        (np.ndarray): configuration parameters.
+    """
 
     config_params = []
     try:
@@ -63,7 +85,13 @@ def read_config_file(file_path, nb_classes, log, to_float=False):
 
 
 def get_file_list(im_path):
-    """Get the list of files to process according to im_path"""
+    """Gets the list of files to process.
+
+    Args:
+        im_path (string): path specifying the images to process.
+    Returns:
+        file_list (string): list of file to process.
+    """
 
     file_list = []
 
@@ -112,7 +140,14 @@ def get_file_list(im_path):
 
 
 def check_hdu(hdu, min_size):
-    """Check if an HDU is ok to be processed"""
+    """Checks whether an HDU is to be processed depending on its data shape and type.
+
+    Args:
+        hdu (astropy.io.fits.HDU): hdu to consider.
+        min_size (int): minimal image size.
+    Returns:
+        (bool): whether the hdu is to be processed or not.
+    """
 
     infos = hdu._summary()
     ds = infos[4]
@@ -132,7 +167,17 @@ def check_hdu(hdu, min_size):
 
 
 def background_est(im, k=3, mesh_size=200, full=True, pad=1):
-    """Process a Sextractor like background estimation"""
+    """Makes a Sextractor-like background estimation.
+    Args:
+        im (np.ndarray): input image.
+        k (int): value to use for sigma-clipping.
+        mesh_size (int): size of the local mesh/blocks.
+        full (bool): whether to return local estimations or full continuous maps at image resolution.
+        pad (int): how many blocks to pad around the image (use pad>1 can avoid interpolation artifacts on small images).
+    Returns:
+        back_v/back_map (list, np.ndarray) list of sky level local estimations or full map of the sky level.
+        sig_v/sig_map (list, np.ndarray): list of sky sigma local estimations or full map of the sky sigma.
+    """
 
     # get the number blocks to process
     h, w = im.shape
@@ -190,7 +235,17 @@ def background_est(im, k=3, mesh_size=200, full=True, pad=1):
 
 
 def build_map(grid_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w, pad):
-    """Median filter and interpolate the grid values to build a full continuous map"""
+    """Median filtering and interpolatation of local estimations.
+    Args:
+        grid_v (list): list of locally estimated values.
+        h_blocks, w_blocks (int): number of mesh blocks for each axis.
+        x_l, y_l (list): list of local estimation coordinates.
+        mesh_size (int): size of the local mesh/blocks.
+        h, w (int): size of the full image.
+        pad (int): how many blocks to pad around the image (use pad>1 can avoid interpolation artifacts on small images).
+    Returns:
+        final_map (np.ndarray): full (h, w) interpolated map of the local estimations.
+    """
 
     # set the values into the 2d grid to filter and interpolate
     grid = np.zeros([h_blocks, w_blocks])
@@ -220,7 +275,12 @@ def build_map(grid_v, h_blocks, w_blocks, x_l, y_l, mesh_size, h, w, pad):
 
 
 def clean_grid(grid):
-    """Detect outliers in the grid and interpolate them"""
+    """Detects outliers in the grid and interpolate them.
+    Args:
+        grid (np.ndarray): input grid.
+    Returns:
+        grid (np.ndarray): grid with interpolated outliers.
+    """
 
     # sigma clipping around the median
     cur_mask = np.ones_like(grid, dtype=np.int32)
@@ -271,7 +331,13 @@ def clean_grid(grid):
 
 @timeit
 def image_norm(im):
-    """Image preprocessing and normalization"""
+    """Normalizes the image.
+
+    Args:
+        im (np.ndarray): input image.
+    Returns:
+        im (np.ndarray): normalized image.
+    """
 
     # safety cast
     im = im.astype(np.float32)
