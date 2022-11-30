@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="MaxiMask",
-    version="1.3.4",
+    version="1.3.5",
     author="Maxime Paillassa",
     author_email="maxime.paillassa@nagoya-u.jp",
     description="Convolutional neural networks to detect contaminants in astronomical images.",
