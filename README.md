@@ -67,9 +67,9 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --net_dir NET_DIR     neural network graphs and weights directory. Default is </path_to_root/models/maximask>
+  --net_dir NET_DIR     neural network graphs and weights directory. Default is </path_to_root/maximask_and_maxitrack/maximask/model>
   --config_dir CONFIG_DIR
-                        configuration file directory. Default is </path_to_root/config/maximask>
+                        configuration file directory. Default is </path_to_root/maximask_and_maxitrack/maximask/config>
   --prior_modif PRIOR_MODIF
                         bool indicating if probability maps should be prior modified. Default is True
   --proba_thresh PROBA_THRESH
@@ -88,7 +88,7 @@ By default MaxiMask will prior adjust and threshold the probabilities.
 
 ### Configuration files
 
-The 3 configuration files are _classes.flags_, _classes.priors_ and _classes.thresh_. Default versions of those files are located in `config/maximask`. **Be careful** that if you want to modify them to use different parameters, you need to use the `--config_dir` option to specify the directory and effectively point to those files.
+The 3 configuration files are _classes.flags_, _classes.priors_ and _classes.thresh_. Default versions of those files are located in `maximask_and_maxitrack/maximask/config`. **Be careful** that if you want to modify them to use different parameters, you need to use the `--config_dir` option to specify the directory and effectively point to those files.
 
 The adopted syntax consists of two space separated columns:
 1. the abbreviated class names.
@@ -177,7 +177,7 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --net_dir NET_DIR     neural network graphs and weights directory. Default is </abs_path_to_script/../tensorflow_models/maxitrack>
+  --net_dir NET_DIR     neural network graphs and weights directory. Default is </path_to_script/maximask_and_maxitrack/maxitrack/model>
   --prior PRIOR         prior value to use. Default is 0.05
   --frac FRAC           value specifying a fraction of all the HDUs to use to speed up processing. Default is 1
   --batch_size BATCH_SIZE

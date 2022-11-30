@@ -521,13 +521,13 @@ def main():
     parser.add_argument(
         "--net_dir",
         type=str,
-        help="neural network graphs and weights directory. Default is </path_to_root/models/maximask>",
+        help="neural network graphs and weights directory. Default is </path_to_root/maximask_and_maxitrack/maximask/model>",
         default=net_dir,
     )
     parser.add_argument(
         "--config_dir",
         type=str,
-        help="configuration file directory. Default is </path_to_root/config/maximask>",
+        help="configuration file directory. Default is </path_to_root/maximask_and_maxitrack/maximask/config>",
         default=config_dir,
     )
     parser.add_argument(
