@@ -468,9 +468,8 @@ def main():
 
     # optional parameters
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.dirname(os.path.dirname(script_dir))
-    net_dir = os.path.join(root_dir, "models/maximask")
-    config_dir = os.path.join(root_dir, "config/maximask")
+    net_dir = os.path.join(script_dir, "model")
+    config_dir = os.path.join(script_dir, "config")
     parser.add_argument(
         "--net_dir",
         type=str,
