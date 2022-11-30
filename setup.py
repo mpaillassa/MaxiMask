@@ -14,8 +14,8 @@ setup(
     packages=find_packages(),
     entry_points={
         "console_scripts": [
-            "maximask = maximask_and_maxitrack.scripts.maximask:main",
-            "maxitrack = maximask_and_maxitrack.scripts.maxitrack:main",
+            "maximask = maximask_and_maxitrack.maximask.maximask:main",
+            "maxitrack = maximask_and_maxitrack.maxitrack.maxitrack:main",
         ]
     },
     install_requires=["astropy>=4.3.1", "scipy>1.7.1", "numpy>=1.21.5", "tqdm>=4.62.3", "tensorflow>=2.3"],
