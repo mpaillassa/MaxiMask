@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="MaxiMask",
-    version="1.3.5",
+    version="{{VERSION_PLACEHOLDER}}",
     author="Maxime Paillassa",
     author_email="maxime.paillassa@nagoya-u.jp",
     description="Convolutional neural networks to detect contaminants in astronomical images.",
@@ -25,7 +25,7 @@ setup(
         "tqdm>=4.62.3",
         "tensorflow>=2.11",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     license="MIT",
     include_package_data=True,
     classifiers=[
