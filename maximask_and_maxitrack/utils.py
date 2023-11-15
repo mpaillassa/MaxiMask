@@ -81,7 +81,7 @@ def read_config_file(file_path, nb_classes, log, to_float=False):
     if to_float:
         return np.array(config_params, dtype=np.float32)
     else:
-        return np.array(config_params, dtype=np.bool)
+        return np.array(config_params, dtype=bool)
 
 
 def get_file_list(im_path):
