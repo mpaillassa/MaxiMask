@@ -81,8 +81,6 @@ class MaxiTrack_inference(object):
             tf_model (tf.keras.Model): MaxiTrack tensorflow model.
         """
 
-        all_preds = []
-
         # make hdu tasks
         hdu_task_list = self.make_hdu_tasks(file_name)
 
@@ -102,25 +100,34 @@ class MaxiTrack_inference(object):
             else:
                 log.info("Using all available HDUs")
 
-            # go through all HDUs
-            for hdu_idx, hdu_type, hdu_shape in hdu_task_list:
-                log.info(f"HDU {hdu_idx}")
-
-                # get raw predictions
-                preds, t = self.process_hdu(file_name, hdu_idx, tf_model)
-                log.info(
-                    f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s"
-                )
-
-                # append the results
-                for pred in preds:
-                    all_preds.append(pred)
-
-            final_res = np.mean(all_preds)
-
-            # write file
+            # go through all HDUs and write results
+            all_2d_hdu_preds = []
             with open("maxitrack.out", "a") as fd:
-                fd.write(f"{file_name} {final_res:.4f}\n")
+
+                for hdu_idx, hdu_shape in hdu_task_list:
+                    log.info(f"HDU {hdu_idx}")
+
+                    # get raw predictions
+                    preds, t = self.process_hdu(file_name, hdu_idx, tf_model)
+                    log.info(
+                        f"Whole processing time (incl. preprocessing): {t:.2f}s, {np.prod(hdu_shape)/(t*1e06):.2f}MPix/s"
+                    )
+
+                    # if this is a 3D HDU, outputs a score per channel image
+                    if len(preds) > 1:
+                        for ch in range(len(preds)):
+                            fd.write(
+                                f"{file_name} HDU {hdu_idx} Channel {ch} {preds[ch]:.4f}\n"
+                            )
+                    # if this is a 2D HDU, consider this is the same field over all 2D HDUs and aggregate a score over them
+                    elif len(preds) == 1:
+                        all_2d_hdu_preds.append(preds)
+
+                # write the aggregated score of 2D HDUs
+                if len(all_2d_hdu_preds):
+                    final_pred = np.mean(all_2d_hdu_preds)
+                    fd.write(f"{file_name} {final_pred:.4f}\n")
+
         else:
             log.info(f"Skipping {file_name} because no HDU was found to be processed")
 
@@ -145,7 +152,7 @@ class MaxiTrack_inference(object):
                 check, hdu_type = utils.check_hdu(specified_hdu, self.im_size)
                 if check:
                     hdu_shape = specified_hdu.data.shape
-                    hdu_task_list.append([spec_hdu_idx, hdu_type, hdu_shape])
+                    hdu_task_list.append([spec_hdu_idx, hdu_shape])
                 else:
                     log.info(
                         f"Ignoring HDU {spec_hdu_idx} because not adequate data format"
@@ -157,7 +164,7 @@ class MaxiTrack_inference(object):
                     check, hdu_type = utils.check_hdu(file_hdu[k], self.im_size)
                     if check:
                         hdu_shape = file_hdu[k].data.shape
-                        hdu_task_list.append([k, hdu_type, hdu_shape])
+                        hdu_task_list.append([k, hdu_shape])
                     else:
                         log.info(f"Ignoring HDU {k} because not adequate data format")
 
@@ -172,7 +179,7 @@ class MaxiTrack_inference(object):
             hdu_idx (int): index of the HDU to process.
             tf_model (tf.keras.Model): MaxiTrack tensorflow model.
         Returns:
-            out_array (np.ndarray): MaxiTrack predictions over the image.
+            outputs (list): MaxiTrack predictions over image and channels if 3D data.
         """
 
         # make file name
@@ -184,15 +191,42 @@ class MaxiTrack_inference(object):
         with fits.open(file_name) as file_hdu:
             hdu = file_hdu[hdu_idx]
             im_data = hdu.data
-
-        # get list of block coordinate to process
-        h, w = im_data.shape
-        block_coord_list = self.get_block_coords(h, w)
+        im_data_shape = im_data.shape
 
         # preprocessing
         log.info("Preprocessing...")
         im_data, t = utils.image_norm(im_data)
-        log.info(f"Preprocessing done in {t:.2f}s, {h*w/(t*1e06):.2f}MPix/s")
+        log.info(
+            f"Preprocessing done in {t:.2f}s, {np.prod(im_data_shape)/(t*1e06):.2f}MPix/s"
+        )
+
+        # process the HDU 3D or 2D data
+        outputs = []
+        if len(im_data_shape) == 3:
+            c, h, w = im_data.shape
+            for ch in tqdm.tqdm(range(c), desc="CUBE CHANNELS"):
+                ch_im_data = im_data[ch]
+                predictions = self.process_image(ch_im_data, tf_model)
+                outputs.append(np.mean(predictions))
+
+        elif len(im_data_shape) == 2:
+            predictions = self.process_image(im_data, tf_model)
+            outputs.append(np.mean(predictions))
+
+        return outputs
+
+    def process_image(self, im_data, tf_model):
+        """Processes 2D image data.
+
+        Args:
+            im_data (np.ndarray): 2D image data to process.
+            tf_model (tf.keras.Model): MaxiTrack tensorflow model.
+        Returns:
+            out_array (np.ndarray): MaxiTrack predictions over the image.
+        """
+
+        h, w = im_data.shape
+        block_coord_list = self.get_block_coords(h, w)
 
         # process all the blocks by batches
         nb_blocks = len(block_coord_list)

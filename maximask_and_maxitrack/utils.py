@@ -149,9 +149,16 @@ def check_hdu(hdu, min_size):
         (bool): whether the hdu is to be processed or not.
     """
 
+    # get HDU information
     infos = hdu._summary()
+
+    # check size validity
     ds = infos[4]
-    size_b = len(ds) == 2 and ds[0] > min_size and ds[1] > min_size
+    size_b_2d = len(ds) == 2 and ds[0] > min_size and ds[1] > min_size
+    size_b_3d = len(ds) == 3 and ds[1] > min_size and ds[2] > min_size
+    size_b = size_b_2d or size_b_3d
+
+    # check data type validity
     dt = infos[5]
     data_type_b = (
         "float16" in dt
@@ -347,9 +354,16 @@ def image_norm(im):
     np.place(im, im > 80000, 80000)
     np.place(im, im < -500, -500)
 
-    # normalization
-    bg_map, si_map = background_est(im)
-    im -= bg_map
-    im /= si_map
+    # normalize single image or all channels if 3d
+    im_shape = im.shape
+    if len(im_shape) == 3:
+        for ch in range(im_shape[0]):
+            bg_map, si_map = background_est(im[ch])
+            im[ch] -= bg_map
+            im[ch] /= si_map
+    elif len(im_shape) == 2:
+        bg_map, si_map = background_est(im)
+        im -= bg_map
+        im /= si_map
 
     return im
