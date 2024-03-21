@@ -203,7 +203,7 @@ class MaxiTrack_inference(object):
         # process the HDU 3D or 2D data
         outputs = []
         if len(im_data_shape) == 3:
-            c, h, w = im_data.shape
+            c = im_data.shape[0]
             for ch in tqdm.tqdm(range(c), desc="CUBE CHANNELS"):
                 ch_im_data = im_data[ch]
                 predictions = self.process_image(ch_im_data, tf_model)
@@ -225,6 +225,7 @@ class MaxiTrack_inference(object):
             out_array (np.ndarray): MaxiTrack predictions over the image.
         """
 
+        # get list of block coordinate to process
         h, w = im_data.shape
         block_coord_list = self.get_block_coords(h, w)
 
